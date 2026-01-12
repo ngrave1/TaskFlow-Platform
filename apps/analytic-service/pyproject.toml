@@ -1,0 +1,15 @@
+[project]
+name = "analytics-service"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+dependencies = [
+    "common >=0.1.0",
+]
+
+[tool.uv.dependencies]
+fastapi = ">=0.104.0"
+sqlalchemy = ">=2.0.0"
+pandas = ">=2.0.0"
+plotly = ">=5.0.0"
+cachetools = ">=5.0.0"

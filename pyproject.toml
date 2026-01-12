@@ -1,0 +1,17 @@
+[tool.uv.workspace]
+members = [
+    "apps/api-gateway",
+    "apps/task-service", 
+    "apps/user_service",
+    "apps/notification-service",
+    "apps/analytics-service",
+    "libs/common"
+]
+
+[tool.uv.sources]
+common = { workspace = true }
+api-gateway = { workspace = true }
+task-service = { workspace = true }
+user-service = { workspace = true }
+notification-service = { workspace = true }
+analytics-service = { workspace = true }

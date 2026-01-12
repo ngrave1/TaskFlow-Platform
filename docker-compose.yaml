@@ -1,0 +1,241 @@
+x-logging: &default-logging
+  driver: loki
+  options:
+    loki-url: "http://localhost:3100/loki/api/v1/push"
+    loki-retries: "5"
+    loki-batch-size: "400"
+
+x-common-env: &common-env
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOKI_URL: ${LOKI_URL:-http://loki:3100}
+  REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+  API_GATEWAY_URL: http://api-gateway:8000
+
+services:  
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskflow-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: taskflow
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sh:/docker-entrypoint-initdb.d/init.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: taskflow-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  loki:
+    image: grafana/loki:latest
+    container_name: taskflow-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+      - ./docker/loki-config.yaml:/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: taskflow-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/loki.yaml
+    depends_on:
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./docker/api-gateway.Dockerfile
+    container_name: taskflow-api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+      USER_SERVICE_URL: http://user-service:8000
+      TASK_SERVICE_URL: http://task-service:8000
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000
+      ANALYTICS_SERVICE_URL: http://analytics-service:8000
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
+      RATE_LIMIT_PERIOD: ${RATE_LIMIT_PERIOD:-60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api-gateway:/app/apps/api-gateway
+      - ./libs/common:/app/libs/common
+    command: >
+      sh -c "cd /app &&
+            uv pip install -e ./apps/api-gateway &&
+            uvicorn apps.api_gateway.api_gateway.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging: *default-logging
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./docker/user-service.Dockerfile
+    container_name: taskflow-user-service
+    environment:
+      <<: *common-env
+      DATABASE_URL: ${USER_SERVICE_DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/user_service:/app/apps/user_service
+      - ./libs/common:/app/libs/common
+    command: ["uvicorn", "user_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging: *default-logging
+
+  task-service:
+    build:
+      context: .
+      dockerfile: ./docker/task-service.Dockerfile
+    container_name: taskflow-task-service
+    environment:
+      <<: *common-env
+      DATABASE_URL: ${TASK_SERVICE_DATABASE_URL}
+      CACHE_TTL: ${CACHE_TTL:-300}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/task-service:/app/apps/task-service
+      - ./libs/common:/app/libs/common
+    command: >
+      sh -c "cd /app &&
+             uv pip install -e ./apps/task-service &&
+             uvicorn apps.task_service.task_service.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging: *default-logging
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: ./docker/notification-service.Dockerfile
+    container_name: taskflow-notification-service
+    environment:
+      <<: *common-env
+      DATABASE_URL: ${NOTIFICATION_SERVICE_DATABASE_URL}
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notifications}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/notification-service:/app/apps/notification-service
+      - ./libs/common:/app/libs/common
+    command: >
+      sh -c "cd /app &&
+             uv pip install -e ./apps/notification-service &&
+             uvicorn apps.notification_service.notification_service.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging: *default-logging
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: ./docker/analytics-service.Dockerfile
+    container_name: taskflow-analytics-service
+    environment:
+      <<: *common-env
+      DATABASE_URL: ${ANALYTICS_SERVICE_DATABASE_URL}
+      AGGREGATION_PERIOD: ${AGGREGATION_PERIOD:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/analytics-service:/app/apps/analytics-service
+      - ./libs/common:/app/libs/common
+    command: >
+      sh -c "cd /app &&
+             uv pip install -e ./apps/analytics-service &&
+             uvicorn apps.analytic_service.analytic_service.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  redis_data:
+  loki_data:
+  grafana_data:

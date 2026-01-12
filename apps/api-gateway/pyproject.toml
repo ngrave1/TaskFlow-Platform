@@ -1,0 +1,20 @@
+[project]
+name = "api-gateway"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+dependencies = [
+    "common >=0.1.0",
+]
+
+[tool.uv.dependencies]
+fastapi = ">=0.104.0"
+python-jose = { version = ">=3.3.0", extras = ["cryptography"] }
+bcrypt = ">=1.7.4"
+httpx = ">=0.25.0"
+redis = ">=5.0.0"
+slowapi = ">=0.1.8"
+
+[tool.uv.dependencies.testing]
+pytest = ">=7.0.0"
+pytest-asyncio = ">=0.21.0"
