@@ -1,17 +1,22 @@
+[project]
+name = "taskflow-platform"
+version = "0.1.0"
+requires-python = ">=3.12"
+
 [tool.uv.workspace]
 members = [
     "apps/api-gateway",
     "apps/task-service", 
     "apps/user_service",
     "apps/notification-service",
-    "apps/analytics-service",
+    "apps/analytic-service",
     "libs/common"
 ]
 
 [tool.uv.sources]
 common = { workspace = true }
-api-gateway = { workspace = true }
-task-service = { workspace = true }
-user-service = { workspace = true }
-notification-service = { workspace = true }
-analytics-service = { workspace = true }
+"user-service" = { workspace = true }
+"task-service" = { workspace = true }
+"api-gateway" = { workspace = true }
+"notification-service" = { workspace = true }
+"analytic-service" = { workspace = true }

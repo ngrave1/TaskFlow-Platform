@@ -1,0 +1,239 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  pre-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.4.0"
+      
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+          uv pip install ruff>=0.4.0
+        
+      - name: Check conventional commits
+        if: github.event_name == 'pull_request'
+        uses: webiny/action-conventional-commits@v1.3.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  lint:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.4.0"
+    
+    - name: Create virtual environment
+      run: uv venv .venv
+    
+    - name: Install ruff in virtual environment
+      run: |
+        source .venv/bin/activate
+        uv pip install ruff>=0.4.0
+    
+    - name: Run ruff check
+      run: |
+        source .venv/bin/activate
+        ruff check --output-format=github apps/ libs/
+    
+    - name: Run ruff format check
+      run: |
+        source .venv/bin/activate
+        ruff format --check apps/ libs/
+
+  test:
+    runs-on: ubuntu-latest
+    needs: pre-checks
+    strategy:
+      matrix:
+        service: [user_service]
+        python-version: ["3.12"]
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: admin123
+          POSTGRES_USER: admin
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.4.0"
+      
+      - name: Create virtual environment
+        run: uv venv .venv
+    
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+        
+          if [ -f "libs/common/pyproject.toml" ]; then
+            uv pip install -e ./libs/common
+          fi
+          cd apps/${{ matrix.service }}
+          uv pip install -e .
+          uv pip install pytest pytest-asyncio pytest-cov httpx
+      
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U admin; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 2
+          done
+      
+      - name: Wait for Redis
+        run: |
+          for i in {1..30}; do
+            if redis-cli -h localhost -p 6379 ping | grep -q PONG; then
+              echo "Redis is ready"
+              break
+            fi
+            echo "Waiting for Redis... ($i/30)"
+            sleep 2
+          done
+      
+      - name: Create test database
+        run: |
+          PGPASSWORD=admin123 createdb -h localhost -p 5432 -U admin test_user_service || echo "Database already exists or error"
+      
+      - name: Run tests with coverage
+        env:
+          TESTING: "true"
+          DATABASE_URL: postgresql+asyncpg://admin:admin123@localhost:5432/test_user_service
+          REDIS_URL: redis://localhost:6379
+        run: |
+          source .venv/bin/activate
+          cd apps/${{ matrix.service }}
+          echo "Running tests for ${{ matrix.service }}..."
+          uv run pytest tests/ \
+            -v \
+            --tb=short \
+            --cov=src/${{ matrix.service }} \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --junitxml=junit.xml
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.service }}
+          path: apps/${{ matrix.service }}/junit.xml
+      
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/${{ matrix.service }}/coverage.xml
+          flags: ${{ matrix.service }}
+          name: ${{ matrix.service }}-coverage
+      
+      - name: Display test summary
+        if: always()
+        run: |
+          cd apps/${{ matrix.service }}
+          if [ -f "junit.xml" ]; then
+            echo "=== Test Summary for ${{ matrix.service }} ==="
+            echo "Results saved to junit.xml"
+          else
+            echo "No test results generated"
+          fi
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: success()
+    strategy:
+      matrix:
+        app: [api_gateway, task_service, user_service]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      
+      - name: Build Docker image for ${{ matrix.app }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/python-service.Dockerfile
+          push: false
+          tags: taskflow/${{ matrix.app }}:latest
+          build-args: |
+            APP_NAME=${{ matrix.app }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+
+  final:
+    runs-on: ubuntu-latest
+    needs: [lint, test, docker-build]
+    if: always()
+    steps:
+      - name: Determine outcome
+        id: check
+        run: |
+          if [[ "${{ needs.lint.result }}" == "success" && 
+                "${{ needs.test.result }}" == "success" &&
+                "${{ needs.docker-build.result }}" == "success" ]]; then
+            echo "CI_PASSED=true" >> $GITHUB_OUTPUT
+            echo "All checks passed!"
+          else
+            echo "CI_PASSED=false" >> $GITHUB_OUTPUT
+            echo "Some checks failed!"
+          fi
