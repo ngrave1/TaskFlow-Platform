@@ -21,12 +21,6 @@ jobs:
         run: |
           uv sync --all-extras --dev
           uv pip install ruff>=0.4.0
-        
-      - name: Check conventional commits
-        if: github.event_name == 'pull_request'
-        uses: webiny/action-conventional-commits@v1.3.0
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   lint:
     runs-on: ubuntu-latest
