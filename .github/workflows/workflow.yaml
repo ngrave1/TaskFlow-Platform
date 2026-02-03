@@ -38,7 +38,9 @@ jobs:
           version: "0.4.0"
       
       - name: Install dependencies
-        run: uv sync --all-extras --dev
+        run: | 
+          uv sync --all-extras --dev
+          uv pip install ruff
       
       - name: Run ruff check
         run: uv run ruff check --output-format=github apps/ libs/
@@ -88,7 +90,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
           version: "0.4.0"
       
@@ -148,7 +150,7 @@ jobs:
           path: apps/${{ matrix.service }}/junit.xml
       
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: apps/${{ matrix.service }}/coverage.xml
