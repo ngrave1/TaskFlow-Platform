@@ -1,12 +1,18 @@
+#!/bin/bash
 set -e
-until pg_isready -U "${POSTGRES_USER:-postgres}"; do
-    sleep 2
-done
-databases="user_service task_service notification_service analytics_service"
-for db in $databases; do
-    psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER:-postgres}" <<-EOSQL
-        CREATE DATABASE $db;
-        GRANT ALL PRIVILEGES ON DATABASE $db TO "${POSTGRES_USER:-postgres}";
+
+echo "Creating service databases..."
+
+psql -v ON_ERROR_STOP=0 --username "admin" --dbname "postgres" <<-EOSQL
+    CREATE DATABASE user_service;
+    CREATE DATABASE task_service;
+    CREATE DATABASE notification_service;
+    CREATE DATABASE analytics_service;
+     
+    GRANT ALL PRIVILEGES ON DATABASE user_service TO admin;
+    GRANT ALL PRIVILEGES ON DATABASE task_service TO admin;
+    GRANT ALL PRIVILEGES ON DATABASE notification_service TO admin;
+    GRANT ALL PRIVILEGES ON DATABASE analytics_service TO admin;
 EOSQL
-done
-echo "database created"
+
+echo "Databases created successfully!"
