@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "api-gateway"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api-gateway:8000"]
+        labels:
+          service: "api-gateway"
+
+  - job_name: "user-service"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["user-service:8000"]
+        labels:
+          service: "user-service"
+
+  - job_name: "task-service"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["task-service:8000"]
+        labels:
+          service: "task-service"
+
+  - job_name: "notification-service"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["notification-service:8000"]
+        labels:
+          service: "notification-service"
+
+  - job_name: "analytic-service"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["analytic-service:8000"]
+        labels:
+          service: "analytic-service"

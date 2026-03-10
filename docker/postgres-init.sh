@@ -1,18 +1,40 @@
 #!/bin/bash
+
 set -e
 
-echo "Creating service databases..."
+wait_for_postgres() {
+    local retries=30
+    while [ $retries -gt 0 ]; do
+        if PGPASSWORD="${POSTGRES_PASSWORD:-admin123}" psql \
+            -h "${POSTGRES_HOST:-postgres}" \
+            -p "${POSTGRES_PORT:-5432}" \
+            -U "${POSTGRES_USER:-admin}" \
+            -d "${POSTGRES_DB:-postgres}" \
+            -c "SELECT 1" >/dev/null 2>&1; then
+            echo "Postgres доступен"
+            return 0
+        fi
+        
+        sleep 2
+        retries=$((retries - 1))
+    done
+    
+    echo "Не удалось подключиться к Postgres"
+    return 1
+}
 
-psql -v ON_ERROR_STOP=0 --username "admin" --dbname "postgres" <<-EOSQL
-    CREATE DATABASE user_service;
-    CREATE DATABASE task_service;
-    CREATE DATABASE notification_service;
-    CREATE DATABASE analytics_service;
-     
-    GRANT ALL PRIVILEGES ON DATABASE user_service TO admin;
-    GRANT ALL PRIVILEGES ON DATABASE task_service TO admin;
-    GRANT ALL PRIVILEGES ON DATABASE notification_service TO admin;
-    GRANT ALL PRIVILEGES ON DATABASE analytics_service TO admin;
-EOSQL
-
-echo "Databases created successfully!"
+if [ "${APP_NAME}" = "user_service" ] || [ "${APP_NAME}" = "task_service" ]; then
+    wait_for_postgres
+    cd "/app/apps/${APP_NAME}"
+    
+    if alembic upgrade head; then
+        echo "Миграции прокинуты для ${APP_NAME}"
+        exit 0
+    else
+        echo "Не удалось применить миграции"
+        exit 1
+    fi
+else
+    echo "миграции не требуются"
+    exit 0
+fi

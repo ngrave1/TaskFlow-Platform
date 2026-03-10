@@ -3,19 +3,19 @@ from .router import router
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import create_async_engine
 from .user_models import Base
+import structlog
 from .config import settings
 
+structlog.configure(
+    processors=[
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer(),
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    engine = create_async_engine(
-        url=str(settings.database.url),
-        echo=True,
-    )
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    await engine.dispose()
+logger = structlog.get_logger("user-service")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 app.include_router(router)

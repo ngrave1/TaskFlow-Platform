@@ -2,21 +2,51 @@
 name = "taskflow-platform"
 version = "0.1.0"
 requires-python = ">=3.12"
+dependencies = [
+    "black>=26.1.0",
+]
 
 [tool.uv.workspace]
 members = [
-    "apps/api-gateway",
-    "apps/task-service", 
+    "apps/api_gateway",
+    "apps/task_service", 
     "apps/user_service",
-    "apps/notification-service",
-    "apps/analytic-service",
+    "apps/notification_service",
+    "apps/analytic_service",
     "libs/common"
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
 ]
 
 [tool.uv.sources]
 common = { workspace = true }
-"user-service" = { workspace = true }
-"task-service" = { workspace = true }
-"api-gateway" = { workspace = true }
-"notification-service" = { workspace = true }
-"analytic-service" = { workspace = true }
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "C4", "ARG", "SIM"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["apps/user_service/tests", "apps/task_service/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v -s --tb=short"
