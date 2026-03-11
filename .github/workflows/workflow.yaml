@@ -132,23 +132,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - service: api-gateway
+          - service: api_gateway
             app_path: apps/api_gateway
             uvicorn_module: "src.api_gateway.main:app"
           
-          - service: task-service
+          - service: task_service
             app_path: apps/task_service
             uvicorn_module: "src.task_service.main:app"
           
-          - service: user-service
+          - service: user_service
             app_path: apps/user_service
             uvicorn_module: "src.user_service.main:app"
           
-          - service: notification-service
+          - service: notification_service
             app_path: apps/notification_service
             uvicorn_module: "src.notification_service.main:app"
           
-          - service: analytic-service
+          - service: analytic_service
             app_path: apps/analytic_service
             uvicorn_module: "src.analytics_service.main:app"
 
