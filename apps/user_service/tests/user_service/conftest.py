@@ -13,6 +13,8 @@ from sqlalchemy.pool import NullPool
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 os.environ["TESTING"] = "true"
+os.environ["TASK_SERVICE_DATABASE_URL"] = "sqlite+aiosqlite:///file::memory:?cache=shared"
+os.environ["API_GATEWAY_URL"] = "http://test-api-gateway:8000"
 
 from src.user_service.dependencies import get_session
 from src.user_service.main import app
