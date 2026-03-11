@@ -61,8 +61,8 @@ jobs:
       fail-fast: false
       matrix:
         app:
-          - task-service
-          - user-service
+          - task_service
+          - user_service
 
     steps:
       - name: Checkout repository
@@ -126,23 +126,23 @@ jobs:
       matrix:
         include:
           - service: api-gateway
-            app_path: apps/api-gateway
+            app_path: apps/api_gateway
             uvicorn_module: "src.api_gateway.main:app"
           
           - service: task-service
-            app_path: apps/task-service
+            app_path: apps/task_service
             uvicorn_module: "src.task_service.main:app"
           
           - service: user-service
-            app_path: apps/user-service
+            app_path: apps/user_service
             uvicorn_module: "src.user_service.main:app"
           
           - service: notification-service
-            app_path: apps/notification-service
+            app_path: apps/notification_service
             uvicorn_module: "src.notification_service.main:app"
           
-          - service: analytics-service
-            app_path: apps/analytics-service
+          - service: analytic-service
+            app_path: apps/analytic_service
             uvicorn_module: "src.analytics_service.main:app"
 
     steps:
