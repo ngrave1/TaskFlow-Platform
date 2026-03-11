@@ -1,6 +1,3 @@
-import os
-
-
 def test_health_check(test_client):
     response = test_client.get("/health")
 

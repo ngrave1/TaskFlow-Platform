@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 from pathlib import Path
 from typing import AsyncGenerator, Generator
 
@@ -9,17 +10,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 os.environ["TESTING"] = "true"
 
-from src.user_service.main import app
 from src.user_service.dependencies import get_session
-from src.user_service.user_models import Base, Users
+from src.user_service.main import app
 from src.user_service.orm_utils import create_user
 from src.user_service.token_utils import create_access_token, create_refresh_token
+from src.user_service.user_models import Base
 from src.user_service.user_schemes import UserSchema
 
 

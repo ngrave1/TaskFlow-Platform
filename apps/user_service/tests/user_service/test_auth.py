@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_login_invalid_email(test_client):
     response = test_client.post(
         "/login/", json={"email": "nonexistent@example.com", "password": "password123"}

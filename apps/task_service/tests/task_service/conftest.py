@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 from pathlib import Path
 from typing import AsyncGenerator, Generator
 
@@ -9,20 +10,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 os.environ["TESTING"] = "true"
-os.environ["TASK_SERVICE_DATABASE_URL"] = (
-    "sqlite+aiosqlite:///file::memory:?cache=shared"
-)
+os.environ["TASK_SERVICE_DATABASE_URL"] = "sqlite+aiosqlite:///file::memory:?cache=shared"
 os.environ["API_GATEWAY_URL"] = "http://test-api-gateway:8000"
 
 from src.task_service.main import app
-from src.task_service.task_models import Base, Tasks
 from src.task_service.orm_utils import create_task_orm
-from src.task_service.task_schemes import TaskCreateSchema
+from src.task_service.task_models import Base
 
 
 @pytest.fixture(scope="session")

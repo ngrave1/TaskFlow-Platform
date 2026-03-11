@@ -1,9 +1,11 @@
 import os
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from .password_utils import hash_password
-from sqlalchemy import select, delete
-from .user_models import Users
+
 from .config import settings
+from .password_utils import hash_password
+from .user_models import Users
 
 # Определяем engine как None - будет создан при первом использовании
 _engine = None

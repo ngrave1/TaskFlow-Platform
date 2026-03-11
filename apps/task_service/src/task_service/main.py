@@ -1,6 +1,7 @@
-from fastapi import FastAPI
-from .router import router
 import structlog
+from fastapi import FastAPI
+
+from .router import router
 
 structlog.configure(
     processors=[

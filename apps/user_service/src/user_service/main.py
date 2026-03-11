@@ -1,10 +1,7 @@
-from fastapi import FastAPI
-from .router import router
-from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import create_async_engine
-from .user_models import Base
 import structlog
-from .config import settings
+from fastapi import FastAPI
+
+from .router import router
 
 structlog.configure(
     processors=[

@@ -1,6 +1,8 @@
-from redis import Redis
-from .queue_utils import get_notification
 import asyncio
+
+from redis import Redis
+
+from .queue_utils import get_notification
 
 
 class worker:

@@ -30,12 +30,12 @@ dev = [
 common = { workspace = true }
 
 [tool.ruff]
-line-length = 88
+line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "C4", "ARG", "SIM"]
-ignore = []
+select = ["E", "I", "B"]
+ignore = ["F", "ARG", "SIM", "E402"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -1,12 +1,14 @@
-import jwt
 from datetime import datetime, timedelta, timezone
-from fastapi import HTTPException, Depends
+
+import jwt
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from .password_utils import check_password
-from .orm_utils import get_user_by_email, get_user_by_id
-from .user_schemes import UserLoginSchema, TokensSchema
+
 from .config import settings
+from .orm_utils import get_user_by_email, get_user_by_id
+from .password_utils import check_password
 from .user_models import Users
+from .user_schemes import TokensSchema, UserLoginSchema
 
 
 async def encode_jwt(
@@ -36,8 +38,13 @@ async def decode_jwt(
     public_key: str = settings.auth_jwt.public_key_path.read_text(),
     algorithm: str = settings.auth_jwt.algorithm,
 ):
-    decoded = jwt.decode(token, public_key, algorithms=[algorithm])
-    return decoded
+    try:
+        decoded = jwt.decode(token, public_key, algorithms=[algorithm])
+        return decoded
+    except jwt.ExpiredSignatureError as e:
+        raise HTTPException(status_code=401, detail="Token expired") from e
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail="Invalid token") from e
 
 
 async def valid_auth_user(credentials: UserLoginSchema, session: AsyncSession):
@@ -45,9 +52,7 @@ async def valid_auth_user(credentials: UserLoginSchema, session: AsyncSession):
     if result is None:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    access = check_password(
-        password=credentials.password, hashed_password=result.password
-    )
+    access = check_password(password=credentials.password, hashed_password=result.password)
     if access:
         return result
     raise HTTPException(status_code=403, detail="Invalid email or password")
@@ -89,21 +94,17 @@ async def sub_check_access_token(
 ):
     try:
         payload = await decode_jwt(access_token)
-        result = await check_user(
-            payload=payload, token_type="access_token", session=session
-        )
+        result = await check_user(payload=payload, token_type="access_token", session=session)
         if result and payload["token_type"] == "access_token":
             return TokensSchema(access_token=access_token, refresh_token=refresh_token)
-    except jwt.ExpiredSignatureError:
+    except HTTPException:
         try:
             refreshed_token = await release_access_token(refresh_token, session)
-            return TokensSchema(
-                access_token=refreshed_token, refresh_token=refresh_token
-            )
-        except:
-            raise HTTPException(status_code=401, detail="Authorization failed")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+            return TokensSchema(access_token=refreshed_token, refresh_token=refresh_token)
+        except Exception as e:
+            raise HTTPException(status_code=401, detail="Authorization failed") from e
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail="Invalid token") from e
 
 
 async def release_access_token(
@@ -112,11 +113,9 @@ async def release_access_token(
 ):
     try:
         payload = await decode_jwt(refresh_token)
-        result = await check_user(
-            payload=payload, token_type="refresh_token", session=session
-        )
+        result = await check_user(payload=payload, token_type="refresh_token", session=session)
         if result and payload["token_type"] == "refresh_token":
             token = await create_access_token(result)
-            return TokensSchema(access_token=token, refresh_token=refresh_token)
-    except:
-        raise HTTPException(status_code=401, detail="Token release failed")
+            return token
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Token release failed") from e

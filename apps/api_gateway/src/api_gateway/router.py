@@ -1,6 +1,7 @@
-from fastapi import APIRouter
 import httpx
-from common.models.models import UserDtoSchema, NotificationDTO
+from common.models.models import NotificationDTO, UserDtoSchema
+from fastapi import APIRouter
+
 from .config import settings
 
 router = APIRouter()
@@ -18,9 +19,7 @@ async def health_check():
 @router.get("/tasks/with_autors/{author_id}")
 async def get_tasks_with_authors(author_id: int):
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{settings.USER_URL}/recive_user_by_id/{author_id}"
-        )
+        response = await client.get(f"{settings.USER_URL}/recive_user_by_id/{author_id}")
         if response.status_code == 200:
             user_data = response.json()
             user_dto = UserDtoSchema(**user_data)

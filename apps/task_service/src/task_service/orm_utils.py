@@ -1,8 +1,10 @@
 import os
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from sqlalchemy import select
-from .task_models import Tasks
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from .config import settings
+from .task_models import Tasks
 
 database_url = str(settings.url)
 
@@ -29,9 +31,7 @@ else:
 engine = create_async_engine(**engine_kwargs)
 
 
-async_session_factory = async_sessionmaker(
-    engine, expire_on_commit=False, class_=AsyncSession
-)
+async_session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
 async def get_session():
@@ -46,9 +46,7 @@ async def create_task_orm(
     author_id: int | None = None,
 ) -> Tasks:
     if author_id:
-        new_task = Tasks(
-            title=title, content=content, author_id=author_id, status="in progress"
-        )
+        new_task = Tasks(title=title, content=content, author_id=author_id, status="in progress")
     else:
         new_task = Tasks(title=title, content=content, author_id=None, status="created")
     try:

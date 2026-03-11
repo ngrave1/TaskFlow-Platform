@@ -1,21 +1,21 @@
-from fastapi import APIRouter, HTTPException, status
 import structlog
+from common.models.models import UserDtoSchema
+from fastapi import APIRouter, HTTPException, status
+
+from .dependencies import SessionDep
 from .orm_utils import (
-    get_user_by_email,
     create_user,
     delete_user_orm,
+    get_user_by_email,
     get_user_by_id,
 )
 from .token_utils import (
     create_access_token,
     create_refresh_token,
-    valid_auth_user,
     sub_check_access_token,
+    valid_auth_user,
 )
-from .dependencies import SessionDep
-from .user_schemes import UserCreateSchema, UserLoginSchema, TokensSchema
-from .token_utils import valid_auth_user
-from common.models.models import UserDtoSchema
+from .user_schemes import TokensSchema, UserCreateSchema, UserLoginSchema
 
 logger = structlog.get_logger(__name__)
 
@@ -52,9 +52,7 @@ async def register_user(
     existing_user = await get_user_by_email(session, user.email)
     if existing_user:
         logger.error("register.user_create.user_already_exist", user=user)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
 
     new_user = await create_user(user.email, user.password)
     try:
@@ -62,7 +60,7 @@ async def register_user(
         await session.commit()
     except Exception as e:
         await session.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}") from e
     logger.info("register.user_create.success", user=user)
     return {"message": f"user added, email {user.email}"}
 
@@ -78,9 +76,9 @@ async def delete_user(
         return {"message": f"User with id {user_id} deleted successfully"}
     except ValueError as e:
         logger.error("delete.user_delete.user_does_not_exist", user_id=user_id)
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deleting user: {str(e)}") from e
 
 
 @router.post("/check_token/")
@@ -104,9 +102,11 @@ async def recive_user_by_id(
     try:
         logger.info("recive_user_by_id.recive_user.attempt", user_id=user_id)
         user = await get_user_by_id(session=session, user_id=user_id)
+        if user is None:
+            raise HTTPException(status_code=404, detail=f"There is no user with this id {user_id}")
         user_dto = UserDtoSchema.model_validate(user, from_attributes=True)
         return user_dto
-    except:
+    except Exception as e:
         raise HTTPException(
-            status_code=404, detail="There is no user with this id{user_id}"
-        )
+            status_code=404, detail=f"There is no user with this id {user_id}"
+        ) from e

@@ -1,17 +1,14 @@
 import pytest
-from fastapi import HTTPException
 from sqlalchemy import select
-from httpx import AsyncClient
-
-from src.task_service.task_models import Tasks
-from src.task_service.orm_utils import check_author, set_author
+from src.task_service.dependecies import get_session
 from src.task_service.help_func import (
     get_inf_about_author_helper,
-    set_author_helper,
     send_assing_notification,
+    set_author_helper,
 )
 from src.task_service.main import app
-from src.task_service.dependecies import get_session
+from src.task_service.orm_utils import check_author, set_author
+from src.task_service.task_models import Tasks
 
 
 @pytest.mark.asyncio
@@ -41,9 +38,7 @@ async def test_create_task_without_author(test_client, async_session, monkeypatc
 
     await async_session.commit()
 
-    result = await async_session.execute(
-        select(Tasks).where(Tasks.title == task_data["title"])
-    )
+    result = await async_session.execute(select(Tasks).where(Tasks.title == task_data["title"]))
     task = result.scalar_one_or_none()
     assert task is not None
     assert task.title == task_data["title"]
@@ -73,9 +68,7 @@ async def test_create_task_with_author(test_client, async_session, mock_httpx_cl
 
     await async_session.commit()
 
-    result = await async_session.execute(
-        select(Tasks).where(Tasks.title == task_data["title"])
-    )
+    result = await async_session.execute(select(Tasks).where(Tasks.title == task_data["title"]))
     task = result.scalar_one_or_none()
     assert task is not None
     assert task.author_id == 1
@@ -128,9 +121,7 @@ async def test_set_author(test_client, async_session, test_task, mock_httpx_clie
 
     await async_session.commit()
 
-    result = await async_session.execute(
-        select(Tasks).where(Tasks.id == test_task["id"])
-    )
+    result = await async_session.execute(select(Tasks).where(Tasks.id == test_task["id"]))
     task = result.scalar_one()
     assert task.author_id == author_id
 
@@ -163,9 +154,7 @@ async def test_get_inf_about_author_by_task_id(
 
     print(f"Task with author: {test_task_with_author}")
 
-    response = test_client.get(
-        f"/get_task_by_id/?task_id={test_task_with_author['id']}"
-    )
+    response = test_client.get(f"/get_task_by_id/?task_id={test_task_with_author['id']}")
 
     if response.status_code != 200:
         print(f"Error response: {response.json()}")
@@ -178,9 +167,7 @@ async def test_get_inf_about_author_by_task_id(
 
 
 @pytest.mark.asyncio
-async def test_get_inf_about_author_task_without_author(
-    test_client, test_task, async_session
-):
+async def test_get_inf_about_author_task_without_author(test_client, test_task, async_session):
     async def override_get_session():
         yield async_session
 
@@ -229,15 +216,11 @@ async def test_get_inf_about_author_helper_with_task_id(
         session=async_session, task_id=test_task_with_author["id"], author_id=None
     )
     assert result is not None
-    assert mock_httpx_client.get_calls[0]["url"].endswith(
-        f"/{test_task_with_author['author_id']}"
-    )
+    assert mock_httpx_client.get_calls[0]["url"].endswith(f"/{test_task_with_author['author_id']}")
 
 
 @pytest.mark.asyncio
-async def test_get_inf_about_author_helper_with_author_id(
-    async_session, mock_httpx_client
-):
+async def test_get_inf_about_author_helper_with_author_id(async_session, mock_httpx_client):
     author_id = 42
     result = await get_inf_about_author_helper(
         session=async_session, task_id=None, author_id=author_id
@@ -260,9 +243,7 @@ async def test_set_author_helper(async_session, test_task, mock_httpx_client):
 
 
 @pytest.mark.asyncio
-async def test_send_assing_notification(
-    async_session, test_task_with_author, mock_httpx_client
-):
+async def test_send_assing_notification(async_session, test_task_with_author, mock_httpx_client):
     result = await send_assing_notification(
         session=async_session,
         task_id=test_task_with_author["id"],

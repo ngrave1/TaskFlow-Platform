@@ -1,7 +1,8 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import BaseModel, Field, PostgresDsn, AnyUrl
 from pathlib import Path
 from typing import ClassVar
+
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DatabaseSettings(BaseModel):
@@ -24,12 +25,8 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://admin:admin123@postgres:5432/user_service",
         alias="USER_SERVICE_DATABASE_URL",
     )
-    private_key_path: Path = Field(
-        default=Path(__file__).parent.parent / "certs/jwt-private.pem"
-    )
-    public_key_path: Path = Field(
-        default=Path(__file__).parent.parent / "certs/jwt-public.pem"
-    )
+    private_key_path: Path = Field(default=Path(__file__).parent.parent / "certs/jwt-private.pem")
+    public_key_path: Path = Field(default=Path(__file__).parent.parent / "certs/jwt-public.pem")
     algorithm: str = "RS256"
     env_path: ClassVar[Path] = Path(__file__).parent.parent.parent.parent.parent
 

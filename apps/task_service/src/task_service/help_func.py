@@ -1,7 +1,8 @@
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
-from .orm_utils import check_author, set_author
+
 from .config import settings
+from .orm_utils import check_author, set_author
 
 
 async def get_inf_about_author_helper(
@@ -35,9 +36,7 @@ async def set_author_helper(
     author_id: int,
 ):
     try:
-        updated_task = await set_author(
-            session=session, task_id=task_id, author_id=author_id
-        )
+        updated_task = await set_author(session=session, task_id=task_id, author_id=author_id)
 
         if not updated_task:
             return None

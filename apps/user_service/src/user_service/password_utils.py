@@ -1,5 +1,4 @@
 import bcrypt
-import asyncio
 
 
 def hash_password(password: str) -> bytes:

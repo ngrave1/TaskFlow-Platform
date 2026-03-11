@@ -1,12 +1,13 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
-from common.models.models import NotificationDTO
-from .emailProvider import EmailProvider
-from .config import settings
-from .queue_utils import async_redis, push_notification
-import structlog
 import json
-from typing import Dict, Any
-import asyncio
+from typing import Any, Dict
+
+import structlog
+from common.models.models import NotificationDTO
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+
+from .config import settings
+from .emailProvider import EmailProvider
+from .queue_utils import async_redis, push_notification
 
 logger = structlog.getLogger(__name__)
 
@@ -27,7 +28,6 @@ AVAILABLE_PROVIDERS = {
 
 
 async def send_notification_task(notification_data: Dict[str, Any]):
-
     try:
         notification = NotificationDTO(**notification_data)
 
@@ -42,7 +42,6 @@ async def send_notification_task(notification_data: Dict[str, Any]):
         if not provider:
             error_msg = f"Provider '{notification.provider}' not found"
             logger.error("notification.send.failed", error=error_msg)
-
             await push_notification(async_redis, json.dumps(notification.model_dump()))
             return
 
@@ -58,15 +57,13 @@ async def send_notification_task(notification_data: Dict[str, Any]):
                 provider=notification.provider,
                 message_id=result.message_id,
             )
-
         else:
             logger.error(
                 "notification.send.failed",
                 provider=notification.provider,
                 error=result.error,
             )
-
-            await push_notification(async_redis, json.dumps(notification.dict()))
+            await push_notification(async_redis, json.dumps(notification.model_dump()))
 
     except Exception as e:
         logger.exception(
@@ -81,14 +78,15 @@ async def health_check():
     try:
         await async_redis.ping()
         redis_ok = True
-    except:
+    except Exception:
         pass
+
     providers_status = {}
     for provider_name, provider in AVAILABLE_PROVIDERS.items():
         try:
             is_valid = await provider.validate_config()
             providers_status[provider_name] = "healthy" if is_valid else "unhealthy"
-        except:
+        except Exception:
             providers_status[provider_name] = "unhealthy"
 
     return {
@@ -125,9 +123,13 @@ async def send_notification(
 ):
     try:
         if notification.provider not in AVAILABLE_PROVIDERS:
+            available_providers = list(AVAILABLE_PROVIDERS.keys())
             raise HTTPException(
                 status_code=400,
-                detail=f"Provider '{notification.provider}' not supported. Available providers: {list(AVAILABLE_PROVIDERS.keys())}",
+                detail=(
+                    f"Provider '{notification.provider}' not supported. "
+                    f"Available providers: {available_providers}"
+                ),
             )
 
         provider = AVAILABLE_PROVIDERS[notification.provider]
@@ -153,7 +155,7 @@ async def send_notification(
         logger.exception("notification.queue.failed", error=str(e))
         raise HTTPException(
             status_code=500, detail=f"Failed to queue notification: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/notifications/queue/status")
@@ -162,6 +164,4 @@ async def get_queue_status():
         queue_length = await async_redis.llen("notifications")
         return {"queue_length": queue_length, "status": "healthy"}
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get queue status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get queue status: {str(e)}") from e

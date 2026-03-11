@@ -1,8 +1,10 @@
-import aiosmtplib
 from email.message import EmailMessage
 from typing import Optional
-from .baseNotificationProvider import NotificationProvider, DeliveryResult
+
+import aiosmtplib
 import structlog
+
+from .baseNotificationProvider import DeliveryResult, NotificationProvider
 
 logger = structlog.getLogger(__name__)
 
@@ -44,9 +46,7 @@ class EmailProvider(NotificationProvider):
             email["Subject"] = subject or "Task notification"
             email.set_content(message)
 
-            async with aiosmtplib.SMTP(
-                hostname=self.host, port=self.port, use_tls=False
-            ) as smtp:
+            async with aiosmtplib.SMTP(hostname=self.host, port=self.port, use_tls=False) as smtp:
                 await smtp.starttls()
                 if self.username and self.password:
                     await smtp.login(self.username, self.password)
@@ -58,9 +58,7 @@ class EmailProvider(NotificationProvider):
                 message_length=len(message) if message else 0,
             )
 
-            return DeliveryResult(
-                success=True, message_id=f"email_{recipient}_{hash(message)}"
-            )
+            return DeliveryResult(success=True, message_id=f"email_{recipient}_{hash(message)}")
 
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
@@ -68,9 +66,7 @@ class EmailProvider(NotificationProvider):
 
     async def validate_config(self) -> bool:
         try:
-            async with aiosmtplib.SMTP(
-                hostname=self.host, port=self.port, timeout=5
-            ) as smtp:
+            async with aiosmtplib.SMTP(hostname=self.host, port=self.port, timeout=5) as smtp:
                 await smtp.noop()
                 return True
         except Exception:

@@ -1,14 +1,13 @@
-import httpx
 from fastapi import APIRouter, HTTPException
+
 from .dependecies import SessionDep
-from .task_schemes import TaskCreateSchema
-from .orm_utils import create_task_orm
 from .help_func import (
     get_inf_about_author_helper,
-    set_author_helper,
     send_assing_notification,
+    set_author_helper,
 )
-from .config import settings
+from .orm_utils import create_task_orm
+from .task_schemes import TaskCreateSchema
 
 router = APIRouter()
 
@@ -43,12 +42,12 @@ async def create_task(
                     task_id=created_task.id,
                     author_id=None,
                 )
-            except Exception as notif_error:
+            except Exception:
                 raise
 
         return {"message": f"Task created: {task.title}", "task_id": created_task.id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}") from e
 
 
 @router.post("/assing_a_worker/")
@@ -70,7 +69,7 @@ async def set_author(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error adding author: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error adding author: {str(e)}") from e
 
 
 @router.get("/get_task_by_id/")
@@ -91,6 +90,4 @@ async def get_inf_about_author_by_task_id(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error getting author info: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error getting author info: {str(e)}") from e

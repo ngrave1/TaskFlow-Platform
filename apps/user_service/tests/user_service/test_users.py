@@ -1,10 +1,11 @@
 import pytest
 from sqlalchemy import select
-from .conftest import session_add
-from src.user_service.user_models import Users
-from src.user_service.main import app
 from src.user_service.dependencies import get_session
+from src.user_service.main import app
 from src.user_service.orm_utils import create_user
+from src.user_service.user_models import Users
+
+from .conftest import session_add
 
 
 @pytest.mark.asyncio
@@ -24,9 +25,7 @@ async def test_register_user_success(test_client, async_session):
     assert new_user["email"] in data["message"]
 
     await async_session.commit()
-    result = await async_session.execute(
-        select(Users).where(Users.email == new_user["email"])
-    )
+    result = await async_session.execute(select(Users).where(Users.email == new_user["email"]))
     user = result.scalar_one_or_none()
     assert user is not None
     assert user.email == new_user["email"]
