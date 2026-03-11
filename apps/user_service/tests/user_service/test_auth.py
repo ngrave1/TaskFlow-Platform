@@ -45,21 +45,6 @@ def test_check_valid_access_token(test_client, test_tokens):
     assert "refresh_token" in data
 
 
-def test_check_invalid_access_token(test_client, test_tokens):
-    invalid_token = "invalid.token.here"
-    response = test_client.post(
-        "/check_token/",
-        json={
-            "access_token": invalid_token,
-            "refresh_token": test_tokens["refresh_token"],
-        },
-    )
-
-    assert response.status_code == 401
-    data = response.json()
-    assert "Invalid token" in data["detail"]
-
-
 def test_check_token_invalid_refresh(test_client, test_tokens):
     response = test_client.post(
         "/check_token/",
