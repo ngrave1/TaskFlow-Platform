@@ -83,28 +83,13 @@ jobs:
         run: |
           uv sync --all-packages
           uv pip install aiosqlite
-      - name: Run tests with debug
-        env:
-          TESTING: "true"
-          DATABASE_URL: "sqlite+aiosqlite:///file::memory:?cache=shared"
-          PYTHONPATH: ${{ github.workspace }}
+
+      - name: Create JWT certificates for testing
+        if: matrix.app == 'user_service'
         run: |
-          cd apps/${{ matrix.app }}
-          
-          echo "=== Current directory ==="
-          pwd 
-          
-          echo "=== Python path ==="
-          python -c "import sys; print('\n'.join(sys.path))"
-          
-          echo "=== Files in src ==="
-          ls -la src/
-          
-          echo "=== Files in tests ==="
-          ls -la tests/
-          
-          echo "=== Running tests with verbose output ==="
-          uv run pytest tests/ -vv --tb=long --maxfail=1
+          mkdir -p apps/user_service/src/certs
+          openssl genrsa -out apps/user_service/src/certs/jwt-private.pem 2048
+          openssl rsa -in apps/user_service/src/certs/jwt-private.pem -pubout -out apps/user_service/src/certs/jwt-public.pem
 
       - name: Run tests (${{ matrix.app }})
         env:
