@@ -63,6 +63,8 @@ jobs:
         app:
           - task_service
           - user_service
+          - api_gateway
+          - notification_service
 
     steps:
       - name: Checkout repository
