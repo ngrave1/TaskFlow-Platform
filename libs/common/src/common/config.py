@@ -10,7 +10,7 @@ class DatabaseSettings(BaseSettings):
     url: str = Field(alias="DATABASE_URL")
     pool_size: int = Field(default=10, alias="DATABASE_POOL_SIZE")
     echo: bool = Field(default=False, alias="DATABASE_ECHO")
-    
+
     model_config = SettingsConfigDict(extra="ignore")
 
 
@@ -19,16 +19,17 @@ class ServiceUrls(BaseSettings):
     user_service: str = Field(default="http://user-service:8000", alias="USER_URL")
     task_service: str = Field(default="http://task-service:8000", alias="TASK_URL")
     notification_service: str = Field(
-        default="http://notification-service:8000", 
-        alias="NOTIFICATION_URL")
+        default="http://notification-service:8000", alias="NOTIFICATION_URL"
+    )
     analytics_service: str = Field(default="http://analytics-service:8000", alias="ANALYTICS_URL")
-    
+
     model_config = SettingsConfigDict(extra="ignore")
+
 
 class LoggingSettings(BaseSettings):
     environment: str = Field(alias="ENVIRONMENT")
     debug: bool = Field(default=False, alias="DEBUG")
-    
+
     model_config = SettingsConfigDict(extra="ignore")
 
 
@@ -36,9 +37,9 @@ class AppSettings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     urls: ServiceUrls = Field(default_factory=ServiceUrls)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    
+
     env_path: ClassVar[Path] = Path(__file__).parent.parent.parent.parent.parent / ".env"
-    
+
     model_config = SettingsConfigDict(
         env_file=str(env_path),
         env_file_encoding="utf-8",

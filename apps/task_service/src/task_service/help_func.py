@@ -13,6 +13,7 @@ async def get_api_gateway_url() -> str:
     if os.getenv("TESTING") == "true":
         return "http://test-api-gateway:8000"
     from common.config import get_common_settings
+
     common = get_common_settings()
     return common.urls.api_gateway
 
@@ -33,11 +34,9 @@ async def get_inf_about_author_helper(
 
     if target_author_id is not None:
         api_gateway_url = await get_api_gateway_url()
-        
+
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{api_gateway_url}/tasks/with_authors/{target_author_id}"
-            )
+            response = await client.get(f"{api_gateway_url}/tasks/with_authors/{target_author_id}")
             response.raise_for_status()
             return response.json()
 
@@ -84,8 +83,7 @@ async def send_assign_notification(
         raise
     if recipient:
         logger.info(
-            "help_func.send_assign_notification.response",
-            recipient_email=recipient.get("email")
+            "help_func.send_assign_notification.response", recipient_email=recipient.get("email")
         )
         recipient_email = recipient.get("email")
     else:

@@ -45,10 +45,7 @@ class EmailProvider(NotificationProvider):
             email.set_content(message)
 
             async with aiosmtplib.SMTP(
-                hostname=self.host, 
-                port=self.port, 
-                use_tls=True,
-                start_tls=False
+                hostname=self.host, port=self.port, use_tls=True, start_tls=False
             ) as smtp:
                 if self.username and self.password:
                     await smtp.login(self.username, self.password)
@@ -61,11 +58,8 @@ class EmailProvider(NotificationProvider):
             )
 
             unique_id = uuid.uuid4().hex[:16]
-        
-            return DeliveryResult(
-                success=True, 
-                message_id=f"email_{recipient}_{unique_id}"
-            )
+
+            return DeliveryResult(success=True, message_id=f"email_{recipient}_{unique_id}")
 
         except Exception as e:
             logger.error(f"Failed to send email: {e}")

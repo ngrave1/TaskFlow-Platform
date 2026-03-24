@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     smtp_password: str = Field(alias="SMTP_PASSWORD")
     smtp_from_email: str = Field(alias="SMTP_FROM_EMAIL")
     smtp_use_tls: bool = Field(alias="SMTP_USE_TLS")
-    
+
     redis_host: str = Field(alias="REDIS_HOST")
     redis_port: int = Field(alias="REDIS_PORT")
     redis_password: str = Field(alias="REDIS_PASSWORD")

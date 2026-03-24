@@ -25,7 +25,7 @@ async def get_tasks_with_authors(author_id: int):
         logger.info(
             "api_gateway.get_user.response",
             status_code=response.status_code,
-            response_body=response.text[:200]
+            response_body=response.text[:200],
         )
         if response.status_code == 200:
             user_data = response.json()
@@ -35,13 +35,10 @@ async def get_tasks_with_authors(author_id: int):
                 return user_dto
             except Exception as e:
                 logger.exception("api_gateway.get_user.validation_error", error=str(e))
-                raise HTTPException(
-                    status_code=500, detail=f"Invalid user data: {e}"
-                ) from e
+                raise HTTPException(status_code=500, detail=f"Invalid user data: {e}") from e
         else:
             raise HTTPException(
-                status_code=response.status_code,
-                detail=f"User service error: {response.text}"
+                status_code=response.status_code, detail=f"User service error: {response.text}"
             )
 
 
@@ -55,10 +52,7 @@ async def send_notification(notification: NotificationDTO):
         message_length=len(notification.message) if notification.message else 0,
     )
     try:
-        logger.info(
-            "api_gateway.notification.validated",
-            dto=notification.model_dump()
-        )
+        logger.info("api_gateway.notification.validated", dto=notification.model_dump())
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -71,30 +65,24 @@ async def send_notification(notification: NotificationDTO):
                 if result.get("status") == "queued" or result.get("queued"):
                     return {"status": "success", "message": "Notification queued"}
                 else:
-                    logger.warning(
-                        "api_gateway.notification.unexpected_response",
-                        result=result
-                    )
+                    logger.warning("api_gateway.notification.unexpected_response", result=result)
                     return {
                         "status": "warning",
-                        "message": "Notification sent but response unexpected"
+                        "message": "Notification sent but response unexpected",
                     }
             else:
                 logger.error(
                     "api_gateway.notification.http_error",
                     status_code=response.status_code,
-                    response=response.text
+                    response=response.text,
                 )
-                return {
-                    "status": "success",
-                    "message": "Notification sent (despite HTTP error)"
-                }
+                return {"status": "success", "message": "Notification sent (despite HTTP error)"}
 
     except Exception as e:
         logger.exception(
             "api_gateway.notification.failed",
             error=str(e),
             recipient=notification.recipient,
-            provider=notification.provider
+            provider=notification.provider,
         )
         raise HTTPException(status_code=500, detail=str(e)) from e

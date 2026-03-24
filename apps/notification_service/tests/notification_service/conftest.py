@@ -81,4 +81,5 @@ async def notification_data():
 @pytest_asyncio.fixture
 async def notification_dto(notification_data):
     from common.models.models import NotificationDTO
+
     return NotificationDTO(**notification_data)
