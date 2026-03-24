@@ -1,24 +1,36 @@
-from pathlib import Path
-from typing import ClassVar
+import os
 
-from pydantic import AnyUrl, Field, PostgresDsn
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    url: PostgresDsn | AnyUrl = Field(
-        default="postgresql+asyncpg://admin:admin123@postgres:5432/task_service",
-        alias="TASK_SERVICE_DATABASE_URL",
-    )
-
-    api_gateway_url: str = Field(default="http://api-gateway:8000", alias="API_GATEWAY_URL")
-
-    env_path: ClassVar[Path] = Path(__file__).parent.parent.parent.parent.parent / ".env"
-    model_config = SettingsConfigDict(
-        env_file=str(env_path),
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    @property
+    def url(self) -> str:
+        if os.getenv("TESTING") == "true":
+            return os.getenv(
+                "TASK_SERVICE_DATABASE_URL", 
+                "sqlite+aiosqlite:///file::memory:?cache=shared"
+            )
+        
+        from common.config import common_settings
+        base = common_settings.database.url.rstrip('/')
+        if not base.endswith('/'):
+            base = base + '/'
+        return f"{base}task_service"
+    
+    @property
+    def pool_size(self) -> int:
+        if os.getenv("TESTING") == "true":
+            return 5
+        from common.config import common_settings
+        return common_settings.database.pool_size
+    
+    @property
+    def echo(self) -> bool:
+        if os.getenv("TESTING") == "true":
+            return False
+        from common.config import common_settings
+        return common_settings.database.echo
 
 
 settings = Settings()

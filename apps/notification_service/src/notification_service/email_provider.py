@@ -1,10 +1,11 @@
+import uuid
 from email.message import EmailMessage
 from typing import Optional
 
 import aiosmtplib
 import structlog
 
-from .baseNotificationProvider import DeliveryResult, NotificationProvider
+from .base_notification_provider import DeliveryResult, NotificationProvider
 
 logger = structlog.getLogger(__name__)
 
@@ -30,9 +31,6 @@ class EmailProvider(NotificationProvider):
     def provider_type(self) -> str:
         return "email"
 
-    async def create_notification():
-        pass
-
     async def send(
         self,
         recipient: str,
@@ -46,8 +44,12 @@ class EmailProvider(NotificationProvider):
             email["Subject"] = subject or "Task notification"
             email.set_content(message)
 
-            async with aiosmtplib.SMTP(hostname=self.host, port=self.port, use_tls=False) as smtp:
-                await smtp.starttls()
+            async with aiosmtplib.SMTP(
+                hostname=self.host, 
+                port=self.port, 
+                use_tls=True,
+                start_tls=False
+            ) as smtp:
                 if self.username and self.password:
                     await smtp.login(self.username, self.password)
                 await smtp.send_message(email)
@@ -58,7 +60,12 @@ class EmailProvider(NotificationProvider):
                 message_length=len(message) if message else 0,
             )
 
-            return DeliveryResult(success=True, message_id=f"email_{recipient}_{hash(message)}")
+            unique_id = uuid.uuid4().hex[:16]
+        
+            return DeliveryResult(
+                success=True, 
+                message_id=f"email_{recipient}_{unique_id}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to send email: {e}")

@@ -94,13 +94,13 @@ async def check_access_token(
     )
 
 
-@router.get("/recive_user_by_id/{user_id}")
-async def recive_user_by_id(
+@router.get("/receive_user_by_id/{user_id}")
+async def receive_user_by_id(
     session: SessionDep,
     user_id: int,
 ):
     try:
-        logger.info("recive_user_by_id.recive_user.attempt", user_id=user_id)
+        logger.info("receive_user_by_id.receive_user.attempt", user_id=user_id)
         user = await get_user_by_id(session=session, user_id=user_id)
         if user is None:
             raise HTTPException(status_code=404, detail=f"There is no user with this id {user_id}")

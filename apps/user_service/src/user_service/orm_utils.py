@@ -7,50 +7,36 @@ from .config import settings
 from .password_utils import hash_password
 from .user_models import Users
 
-# Определяем engine как None - будет создан при первом использовании
-_engine = None
-_async_session_factory = None
+database_url = str(settings.url)
+
+
 is_testing = os.getenv("TESTING") == "true"
 
+engine_kwargs = {
+    "url": database_url,
+}
 
-def get_engine():
-    """Создает engine с учетом режима тестирования."""
-    global _engine
-    if _engine is None:
-        if is_testing:
-            database_url = "sqlite+aiosqlite:///file::memory:?cache=shared"
-            from sqlalchemy.pool import StaticPool
+if not is_testing:
+    engine_kwargs.update(
+        {
+            "pool_size": settings.pool_size,
+            "max_overflow": 10,
+        }
+    )
+else:
+    from sqlalchemy.pool import NullPool
 
-            _engine = create_async_engine(
-                database_url,
-                poolclass=StaticPool,
-                connect_args={"check_same_thread": False},
-                echo=False,
-            )
-        else:
-            database_url = str(settings.database_url)
-            _engine = create_async_engine(
-                database_url,
-                pool_size=5,
-                max_overflow=10,
-                echo=False,
-            )
-    return _engine
+    engine_kwargs["poolclass"] = NullPool
 
 
-def get_session_factory():
-    """Возвращает фабрику сессий."""
-    global _async_session_factory
-    if _async_session_factory is None:
-        _async_session_factory = async_sessionmaker(
-            get_engine(), expire_on_commit=False, class_=AsyncSession
-        )
-    return _async_session_factory
+engine = create_async_engine(**engine_kwargs)
+
+
+async_session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
 async def get_session():
-    """Генератор сессий для FastAPI зависимостей."""
-    async with get_session_factory()() as session:
+    async with async_session_factory() as session:
         yield session
 
 

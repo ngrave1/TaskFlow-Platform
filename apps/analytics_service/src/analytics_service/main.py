@@ -12,7 +12,7 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
 )
 
-logger = structlog.get_logger("analytic_service")
+logger = structlog.get_logger("analytics_service")
 
 
 app = FastAPI()

@@ -27,6 +27,7 @@ services:
       - "5438:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-dbs.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
       interval: 10s
@@ -56,7 +57,7 @@ services:
     networks:
       - taskflow-network
 
-  api-gateway:
+  api_gateway:
     build:
       context: .
       dockerfile: ./docker/python-service.Dockerfile
@@ -67,12 +68,10 @@ services:
       - "8000:8000"
     environment:
       <<: *common-env
-      USER_SERVICE_URL: http://user-service:8000
-      TASK_SERVICE_URL: http://task-service:8000
-      NOTIFICATION_SERVICE_URL: http://notification-service:8000
-      ANALYTICS_SERVICE_URL: http://analytic-service:8000      
-      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
-      RATE_LIMIT_PERIOD: ${RATE_LIMIT_PERIOD:-60}
+      USER_URL: http://user-service:8000
+      TASK_URL: http://task-service:8000
+      NOTIFICATION_URL: http://notification-service:8000
+      ANALYTICS_URL: http://analytics-service:8000      
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,8 +90,8 @@ services:
     logging: *default-logging
     networks:
       - taskflow-network
-
-  user-service:
+      
+  user_service:
     build:
       context: .
       dockerfile: ./docker/python-service.Dockerfile
@@ -103,7 +102,7 @@ services:
       - "8001:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/user_service
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,7 +112,11 @@ services:
       - ./apps/user_service:/app/apps/user_service
       - ./libs/common:/app/libs/common
     command: >
-      sh -c "uvicorn apps.user_service.src.user_service.main:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "
+        cd /app/apps/user_service && 
+        alembic upgrade head && 
+        uvicorn apps.user_service.src.user_service.main:app --host 0.0.0.0 --port 8000 --reload
+      "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -123,7 +126,7 @@ services:
     networks:
       - taskflow-network
 
-  task-service:
+  task_service:
     build:
       context: .
       dockerfile: ./docker/python-service.Dockerfile
@@ -134,19 +137,23 @@ services:
       - "8002:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/task_service
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      user-service:
+      user_service:
         condition: service_healthy
     volumes:
       - ./apps/task_service:/app/apps/task_service
       - ./libs/common:/app/libs/common
     command: >
-      sh -c "uvicorn apps.task_service.src.task_service.main:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "
+        cd /app/apps/task_service && 
+        alembic upgrade head && 
+        uvicorn apps.task_service.src.task_service.main:app --host 0.0.0.0 --port 8000 --reload
+      "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -156,7 +163,7 @@ services:
     networks:
       - taskflow-network
 
-  notification-service:
+  notification_service:
     build:
       context: .
       dockerfile: ./docker/python-service.Dockerfile
@@ -169,18 +176,21 @@ services:
       <<: *common-env
       DATABASE_URL: postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/notification_service
       NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notifications}
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.mail.ru}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-True}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-0}
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
-      task-service:
+      task_service:
         condition: service_healthy
-      user-service:
+      user_service:
         condition: service_healthy
     volumes:
       - ./apps/notification_service:/app/apps/notification_service
@@ -196,33 +206,33 @@ services:
     networks:
       - taskflow-network
 
-  analytic-service:
+  analytics_service:
     build:
       context: .
       dockerfile: ./docker/python-service.Dockerfile
       args:
-        APP_NAME: analytic_service
-    container_name: taskflow-analytic-service
+        APP_NAME: analytics_service
+    container_name: taskflow-analytics-service
     ports:
       - "8004:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/analytic_service
+      DATABASE_URL: postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/analytics_service
       AGGREGATION_PERIOD: ${AGGREGATION_PERIOD:-5}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      task-service:
+      task_service:
         condition: service_healthy
-      user-service:
+      user_service:
         condition: service_healthy
     volumes:
-      - ./apps/analytic_service:/app/apps/analytic_service
+      - ./apps/analytics_service:/app/apps/analytics_service
       - ./libs/common:/app/libs/common
     command: >
-      sh -c "uvicorn apps.analytic_service.src.analytic_service.main:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "uvicorn apps.analytics_service.src.analytics_service.main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

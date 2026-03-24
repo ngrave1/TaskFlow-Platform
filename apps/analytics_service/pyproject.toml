@@ -1,5 +1,5 @@
 [project]
-name = "analytic-service"
+name = "analytics-service"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,10 +21,10 @@ dev = [
 ]
 
 [tool.hatch.build]
-include = ["src/analytic_service"]
+include = ["src/analytics_service"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/analytic_service"]
+packages = ["src/analytics_service"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

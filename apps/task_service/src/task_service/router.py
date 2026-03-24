@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
-from .dependecies import SessionDep
+from .dependencies import SessionDep
 from .help_func import (
     get_inf_about_author_helper,
-    send_assing_notification,
+    send_assign_notification,
     set_author_helper,
 )
 from .orm_utils import create_task_orm
@@ -36,7 +36,7 @@ async def create_task(
 
         if task.author_id:
             try:
-                await send_assing_notification(
+                await send_assign_notification(
                     session=session,
                     provider="email",
                     task_id=created_task.id,
@@ -50,7 +50,7 @@ async def create_task(
         raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}") from e
 
 
-@router.post("/assing_a_worker/")
+@router.post("/assign_a_worker/")
 async def set_author(
     session: SessionDep,
     task_id: int,

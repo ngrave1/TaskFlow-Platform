@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from .config import settings
 from .task_models import Tasks
 
-database_url = str(settings.url)
+database_url = settings.url
 
 
 is_testing = os.getenv("TESTING") == "true"
@@ -18,7 +18,7 @@ engine_kwargs = {
 if not is_testing:
     engine_kwargs.update(
         {
-            "pool_size": 5,
+            "pool_size": settings.pool_size,
             "max_overflow": 10,
         }
     )

@@ -1,35 +1,22 @@
 from pathlib import Path
 from typing import ClassVar
 
-from pydantic import Field, PostgresDsn
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    url: PostgresDsn = Field(
-        default="postgresql+asyncpg://admin:admin123@postgres:5432/notification_service",
-        alias="NOTIFICATION_SERVICE_DATABASE_URL",
-    )
-
-    api_gateway_url: str = Field(default="http://api-gateway:8000", alias="API_GATEWAY_URL")
-
-    stmp_host: str = Field(default="smtp.mail.ru", alias="SMTP_HOST")
-
-    port: int = Field(
-        default=587,
-        alias="port",
-    )
-
-    username: str = Field(
-        default="ngrave79@mail.ru",
-        alias="username",
-    )
-
-    password: str = Field(
-        alias="SMTP_PASSWORD",
-    )
-
-    from_email: str = Field(default="ngrave79@mail.ru", alias="from_email")
+    smtp_host: str = Field(alias="SMTP_HOST")
+    smtp_port: int = Field(alias="SMTP_PORT")
+    smtp_username: str = Field(alias="SMTP_USERNAME")
+    smtp_password: str = Field(alias="SMTP_PASSWORD")
+    smtp_from_email: str = Field(alias="SMTP_FROM_EMAIL")
+    smtp_use_tls: bool = Field(alias="SMTP_USE_TLS")
+    
+    redis_host: str = Field(alias="REDIS_HOST")
+    redis_port: int = Field(alias="REDIS_PORT")
+    redis_password: str = Field(alias="REDIS_PASSWORD")
+    redis_db: int = Field(alias="REDIS_DB")
 
     env_path: ClassVar[Path] = Path(__file__).parent.parent.parent.parent.parent / ".env"
     model_config = SettingsConfigDict(

@@ -13,7 +13,7 @@ def test_login_invalid_password(test_client, test_user):
         "/login/", json={"email": test_user["email"], "password": "wrongpassword"}
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
     data = response.json()
     assert data["detail"] == "Invalid email or password"
 
@@ -55,4 +55,3 @@ def test_check_token_invalid_refresh(test_client, test_tokens):
     )
 
     assert response.status_code == 200
-    data = response.json()

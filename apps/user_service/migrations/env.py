@@ -19,7 +19,7 @@ from user_service.config import settings
 from user_service.user_models import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", str(settings.database_url))
+config.set_main_option("sqlalchemy.url", str(settings.url))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

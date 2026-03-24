@@ -55,7 +55,7 @@ async def valid_auth_user(credentials: UserLoginSchema, session: AsyncSession):
     access = check_password(password=credentials.password, hashed_password=result.password)
     if access:
         return result
-    raise HTTPException(status_code=403, detail="Invalid email or password")
+    raise HTTPException(status_code=401, detail="Invalid email or password")
 
 
 async def create_access_token(

@@ -1,15 +1,9 @@
+import os
 from pathlib import Path
 from typing import ClassVar
 
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class DatabaseSettings(BaseModel):
-    url: str = Field(
-        default="postgresql+asyncpg://admin:admin123@postgres:5432/user_service",
-        alias="USER_SERVICE_DATABASE_URL",
-    )
 
 
 class AuthJWT(BaseModel):
@@ -21,13 +15,43 @@ class AuthJWT(BaseModel):
 
 
 class Settings(BaseSettings):
-    database_url: str = Field(
-        default="postgresql+asyncpg://admin:admin123@postgres:5432/user_service",
-        alias="USER_SERVICE_DATABASE_URL",
-    )
+    @property
+    def url(self) -> str:
+        if os.getenv("TESTING") == "true":
+            return os.getenv(
+                "USER_SERVICE_DATABASE_URL", 
+                "sqlite+aiosqlite:///file::memory:?cache=shared"
+            )
+        
+        from common.config import get_common_settings
+        common = get_common_settings()
+        base = common.database.url.rstrip('/')
+        if base.endswith('/user_service'):
+            return base
+        if not base.endswith('/'):
+            base = base + '/'
+        return f"{base}user_service"
+    
+    @property
+    def pool_size(self) -> int:
+        if os.getenv("TESTING") == "true":
+            return 5
+        from common.config import get_common_settings
+        common = get_common_settings()
+        return common.database.pool_size
+    
+    @property
+    def echo(self) -> bool:
+        if os.getenv("TESTING") == "true":
+            return False
+        from common.config import get_common_settings
+        common = get_common_settings()
+        return common.database.echo
+    
     private_key_path: Path = Field(default=Path(__file__).parent.parent / "certs/jwt-private.pem")
     public_key_path: Path = Field(default=Path(__file__).parent.parent / "certs/jwt-public.pem")
     algorithm: str = "RS256"
+    
     env_path: ClassVar[Path] = Path(__file__).parent.parent.parent.parent.parent
 
     model_config = SettingsConfigDict(
@@ -35,10 +59,6 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
-
-    @property
-    def database(self) -> DatabaseSettings:
-        return DatabaseSettings(url=self.database_url)
 
     @property
     def auth_jwt(self) -> AuthJWT:

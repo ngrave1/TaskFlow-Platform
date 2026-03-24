@@ -1,9 +1,9 @@
 import pytest
 from sqlalchemy import select
-from src.task_service.dependecies import get_session
+from src.task_service.dependencies import get_session
 from src.task_service.help_func import (
     get_inf_about_author_helper,
-    send_assing_notification,
+    send_assign_notification,
     set_author_helper,
 )
 from src.task_service.main import app
@@ -21,7 +21,7 @@ async def test_health_check(test_client):
 
 
 @pytest.mark.asyncio
-async def test_create_task_without_author(test_client, async_session, monkeypatch):
+async def test_create_task_without_author(test_client, async_session):
     async def override_get_session():
         yield async_session
 
@@ -115,7 +115,7 @@ async def test_set_author(test_client, async_session, test_task, mock_httpx_clie
     author_id = 5
 
     response = test_client.post(
-        f"/assing_a_worker/?task_id={test_task['id']}&author_id={author_id}"
+        f"/assign_a_worker/?task_id={test_task['id']}&author_id={author_id}"
     )
     assert response.status_code == 200
 
@@ -137,7 +137,7 @@ async def test_set_author_nonexistent_task(test_client, async_session):
 
     app.dependency_overrides[get_session] = override_get_session
 
-    response = test_client.post("/assing_a_worker/?task_id=99999&author_id=1")
+    response = test_client.post("/assign_a_worker/?task_id=99999&author_id=1")
     assert response.status_code == 404
 
     app.dependency_overrides.clear()
@@ -243,8 +243,8 @@ async def test_set_author_helper(async_session, test_task, mock_httpx_client):
 
 
 @pytest.mark.asyncio
-async def test_send_assing_notification(async_session, test_task_with_author, mock_httpx_client):
-    result = await send_assing_notification(
+async def test_send_assign_notification(async_session, test_task_with_author, mock_httpx_client):
+    result = await send_assign_notification(
         session=async_session,
         task_id=test_task_with_author["id"],
         author_id=None,

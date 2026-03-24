@@ -103,6 +103,8 @@ jobs:
             --cov=src \
             --cov-report=xml \
             --cov-report=term-missing \
+            --cov-report=html \
+            --cov-fail-under=60 \
             --junitxml=junit.xml
 
       - name: Upload test results
@@ -148,8 +150,8 @@ jobs:
             app_path: apps/notification_service
             uvicorn_module: "src.notification_service.main:app"
           
-          - service: analytic_service
-            app_path: apps/analytic_service
+          - service: analytics_service
+            app_path: apps/analytics_service
             uvicorn_module: "src.analytics_service.main:app"
 
     steps:

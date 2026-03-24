@@ -13,7 +13,6 @@ from sqlalchemy.pool import NullPool
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 os.environ["TESTING"] = "true"
-os.environ["TASK_SERVICE_DATABASE_URL"] = "sqlite+aiosqlite:///file::memory:?cache=shared"
 os.environ["API_GATEWAY_URL"] = "http://test-api-gateway:8000"
 
 from src.task_service.main import app
@@ -38,8 +37,6 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def async_engine():
-    test_db_url = os.getenv("TASK_SERVICE_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-
     engine = create_async_engine(
         "sqlite+aiosqlite:///file::memory:?cache=shared", echo=False, poolclass=NullPool
     )
@@ -190,7 +187,7 @@ def mock_httpx_client(monkeypatch):
 
         async def get(self, url, **kwargs):
             self.get_calls.append({"url": url, "kwargs": kwargs})
-            if "users/with_autors/" in url or "tasks/with_autors/" in url:
+            if "users/with_authors/" in url or "tasks/with_authors/" in url:
                 return MockResponse({"email": "test@example.com", "id": 1})
             return MockResponse({"email": "test@example.com", "id": 1})
 

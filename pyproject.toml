@@ -12,7 +12,7 @@ members = [
     "apps/task_service", 
     "apps/user_service",
     "apps/notification_service",
-    "apps/analytic_service",
+    "apps/analytics_service",
     "libs/common"
 ]
 
@@ -34,8 +34,8 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "I", "B"]
-ignore = ["F", "ARG", "SIM", "E402"]
+select = ["E", "I", "B", "F", "SIM",]
+ignore = ["E402", "ARG"]
 
 [tool.mypy]
 python_version = "3.12"

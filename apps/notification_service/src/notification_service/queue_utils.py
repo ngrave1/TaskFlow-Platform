@@ -1,6 +1,14 @@
 from redis.asyncio import Redis
 
-async_redis = Redis(host="redis", port=6379, password="redis123", db=0, decode_responses=True)
+from .config import settings
+
+async_redis = Redis(
+    host=settings.redis_host, 
+    port=settings.redis_port, 
+    password=settings.redis_password, 
+    db=settings.redis_db, 
+    decode_responses=True
+)
 
 
 async def push_notification(

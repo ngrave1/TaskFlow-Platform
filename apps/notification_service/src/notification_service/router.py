@@ -6,7 +6,7 @@ from common.models.models import NotificationDTO
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from .config import settings
-from .emailProvider import EmailProvider
+from .email_provider import EmailProvider
 from .queue_utils import async_redis, push_notification
 
 logger = structlog.getLogger(__name__)
@@ -14,12 +14,12 @@ logger = structlog.getLogger(__name__)
 router = APIRouter()
 
 email_provider = EmailProvider(
-    host=settings.stmp_host,
-    port=587,
-    username=settings.username,
-    password=settings.password,
-    from_email=settings.from_email,
-    use_tls=False,
+    host=settings.smtp_host,
+    port=settings.smtp_port,
+    username=settings.smtp_username,
+    password=settings.smtp_password,
+    from_email=settings.smtp_from_email,
+    use_tls=settings.smtp_use_tls,
 )
 
 AVAILABLE_PROVIDERS = {
@@ -145,6 +145,7 @@ async def send_notification(
 
         return {
             "status": "queued",
+            "queued": True,
             "message": f"Notification will be sent {notification.provider}",
             "provider": notification.provider,
         }

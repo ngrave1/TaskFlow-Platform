@@ -119,7 +119,7 @@ async def test_get_user_by_id_not_found(test_client, async_session):
 
     app.dependency_overrides[get_session] = override_get_session
 
-    response = test_client.get("/recive_user_by_id/999999")
+    response = test_client.get("/receive_user_by_id/999999")
 
     assert response.status_code == 404
     data = response.json()
@@ -156,6 +156,5 @@ async def test_full_user_cycle(test_client, async_session):
     )
 
     assert check_response.status_code == 200
-    check_data = check_response.json()
 
     app.dependency_overrides.clear()
