@@ -43,4 +43,4 @@ RUN useradd -m -u 1000 appuser && \
 USER appuser
 EXPOSE 8000
 
-CMD ["sh", "-c", "/postgres-init.sh && SERVICE_NAME=$(echo ${APP_NAME} | tr - _) && uvicorn apps.${SERVICE_NAME}.src.${SERVICE_NAME}.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "SERVICE_NAME=$(echo ${APP_NAME} | tr - _) && uvicorn apps.${SERVICE_NAME}.src.${SERVICE_NAME}.main:app --host 0.0.0.0 --port 8000"]
