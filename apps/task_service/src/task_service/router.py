@@ -42,8 +42,8 @@ async def create_task(
                     task_id=created_task.id,
                     author_id=None,
                 )
-            except Exception:
-                raise
+            except Exception as e:
+                raise ValueError("Operation failed") from e
 
         return {"message": f"Task created: {task.title}", "task_id": created_task.id}
     except Exception as e:
@@ -66,8 +66,6 @@ async def set_author(
 
         return {"message": "Author assigned successfully"}
 
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding author: {str(e)}") from e
 
@@ -87,7 +85,5 @@ async def get_inf_about_author_by_task_id(
 
         return author_info
 
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting author info: {str(e)}") from e

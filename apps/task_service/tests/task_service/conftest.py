@@ -167,7 +167,6 @@ async def multiple_tasks(async_session) -> list[dict]:
 
 @pytest.fixture
 def mock_httpx_client(monkeypatch):
-
     class MockResponse:
         def __init__(self, json_data, status_code=200):
             self.json_data = json_data

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .orm_utils import check_author, set_author
 
-logger = structlog.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def get_api_gateway_url() -> str:
@@ -64,7 +64,7 @@ async def set_author_helper(
         return updated_task
 
     except Exception as e:
-        raise e
+        raise ValueError("Operation failed") from e
 
 
 async def send_assign_notification(
@@ -79,8 +79,8 @@ async def send_assign_notification(
         recipient = await get_inf_about_author_helper(
             session=session, task_id=task_id, author_id=author_id
         )
-    except:
-        raise
+    except Exception as e:
+        raise ValueError("Operation failed") from e
     if recipient:
         logger.info(
             "help_func.send_assign_notification.response", recipient_email=recipient.get("email")
@@ -90,13 +90,19 @@ async def send_assign_notification(
         recipient_email = None
 
     api_gateway_url = await get_api_gateway_url()
-
-    return await httpx.AsyncClient().post(
-        f"{api_gateway_url}/tasks/send_notification/",
-        json={
-            "recipient": recipient_email,
-            "provider": provider,
-            "subject": subject,
-            "message": message,
-        },
-    )
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{api_gateway_url}/tasks/send_notification/",
+            json={
+                "recipient": recipient_email,
+                "provider": provider,
+                "subject": subject,
+                "message": message,
+            },
+        )
+    if response.status_code == 200:
+        return response.json
+    else:
+        logger.error(
+            "help_func.send_assign_notification.response", recipient_email=response.status_code
+        )
