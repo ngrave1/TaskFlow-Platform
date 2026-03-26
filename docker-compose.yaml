@@ -37,7 +37,6 @@ services:
     networks:
       - taskflow-network
 
-    
   redis:
     image: redis:7-alpine
     container_name: taskflow-redis
@@ -56,6 +55,59 @@ services:
     logging: *default-logging
     networks:
       - taskflow-network
+
+  user-service-migrations:
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args:
+        APP_NAME: user_service
+    container_name: taskflow-user-service-migrations
+    restart: "no"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/user_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/user_service:/app/apps/user_service
+      - ./libs/common:/app/libs/common
+    command: >
+      sh -c "
+        cd /app/apps/user_service && 
+        alembic upgrade head
+      "
+    logging: *default-logging
+    networks:
+      - taskflow-network
+
+  task-service-migrations:
+    build:
+      context: .
+      dockerfile: docker/python-service.Dockerfile
+      args:
+        APP_NAME: task_service
+    container_name: taskflow-task-service-migrations
+    restart: "no"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/task_service:/app/apps/task_service
+      - ./libs/common:/app/libs/common
+    command: >
+      sh -c "
+        cd /app/apps/task_service && 
+        alembic upgrade head
+      "
+    logging: *default-logging
+    networks:
+      - taskflow-network
+
 
   api_gateway:
     build:
@@ -77,6 +129,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      user-service-migrations:
+        condition: service_completed_successfully
+      task-service-migrations:
+        condition: service_completed_successfully
     volumes:
       - ./apps/api_gateway:/app/apps/api_gateway
       - ./libs/common:/app/libs/common
@@ -102,21 +158,19 @@ services:
       - "8001:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/user_service
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      user-service-migrations:
+        condition: service_completed_successfully
     volumes:
       - ./apps/user_service:/app/apps/user_service
       - ./libs/common:/app/libs/common
     command: >
-      sh -c "
-        cd /app/apps/user_service && 
-        alembic upgrade head && 
-        uvicorn apps.user_service.src.user_service.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+      sh -c "uvicorn apps.user_service.src.user_service.main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -137,7 +191,7 @@ services:
       - "8002:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/task_service
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,15 +199,13 @@ services:
         condition: service_healthy
       user_service:
         condition: service_healthy
+      task-service-migrations:
+        condition: service_completed_successfully
     volumes:
       - ./apps/task_service:/app/apps/task_service
       - ./libs/common:/app/libs/common
     command: >
-      sh -c "
-        cd /app/apps/task_service && 
-        alembic upgrade head && 
-        uvicorn apps.task_service.src.task_service.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+      sh -c "uvicorn apps.task_service.src.task_service.main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -174,7 +226,7 @@ services:
       - "8003:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/notification_service
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/notification_service
       NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notifications}
       SMTP_HOST: ${SMTP_HOST:-smtp.mail.ru}
       SMTP_PORT: ${SMTP_PORT:-465}
@@ -182,9 +234,6 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-True}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_DB: ${REDIS_DB:-0}
     depends_on:
       redis:
         condition: service_healthy
@@ -217,7 +266,7 @@ services:
       - "8004:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/analytics_service
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/analytics_service
       AGGREGATION_PERIOD: ${AGGREGATION_PERIOD:-5}
     depends_on:
       postgres:
@@ -247,7 +296,6 @@ volumes:
     driver: local
   redis_data:
     driver: local
-
 
 networks:
   taskflow-network:
