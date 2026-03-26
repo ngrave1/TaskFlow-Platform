@@ -18,13 +18,13 @@ async def push_notification(
     try:
         await redis_client.rpush("notifications", message)
         return True
-    except:
-        raise
+    except Exception as e:
+        raise ValueError("Operation failed") from e
 
 
 async def get_notification(redis_client: Redis):
     try:
         message = await redis_client.lpop("notifications")
         return message
-    except:
-        raise
+    except Exception as e:
+        raise ValueError("Operation failed") from e

@@ -7,7 +7,7 @@ import structlog
 
 from .base_notification_provider import DeliveryResult, NotificationProvider
 
-logger = structlog.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class EmailProvider(NotificationProvider):

@@ -9,7 +9,7 @@ from .config import settings
 from .email_provider import EmailProvider
 from .queue_utils import async_redis, push_notification
 
-logger = structlog.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -78,8 +78,8 @@ async def health_check():
     try:
         await async_redis.ping()
         redis_ok = True
-    except Exception:
-        pass
+    except Exception as e:
+        raise ValueError("Operation failed") from e
 
     providers_status = {}
     for provider_name, provider in AVAILABLE_PROVIDERS.items():
@@ -150,8 +150,6 @@ async def send_notification(
             "provider": notification.provider,
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.exception("notification.queue.failed", error=str(e))
         raise HTTPException(
