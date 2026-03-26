@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from .config import settings
 
-logger = structlog.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
@@ -63,7 +63,7 @@ async def send_notification(notification: NotificationDTO):
             if response.status_code == 200:
                 result = response.json()
                 if result.get("status") == "queued" or result.get("queued"):
-                    return {"status": "success", "message": "Notification queued"}
+                    return {"status": "queued", "message": "Notification queued"}
                 else:
                     logger.warning("api_gateway.notification.unexpected_response", result=result)
                     return {
@@ -76,7 +76,7 @@ async def send_notification(notification: NotificationDTO):
                     status_code=response.status_code,
                     response=response.text,
                 )
-                return {"status": "success", "message": "Notification sent (despite HTTP error)"}
+                return {"status": "queued", "message": "Notification sent (despite HTTP error)"}
 
     except Exception as e:
         logger.exception(
