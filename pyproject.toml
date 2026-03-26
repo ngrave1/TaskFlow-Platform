@@ -4,6 +4,8 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "black>=26.1.0",
+    "detect-secrets>=1.5.0",
+    "pre-commit>=4.5.1",
 ]
 
 [tool.uv.workspace]
@@ -35,7 +37,14 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "I", "B", "F", "SIM",]
-ignore = ["E402", "ARG"]
+ignore = [
+    # E402: module level import not at top of file
+    # Required in conftest.py to configure sys.path and env vars before imports
+    "E402",
+    # ARG: unused function argument
+    # Required for FastAPI dependency injection and test mocks
+    "ARG",
+]
 
 [tool.mypy]
 python_version = "3.12"
@@ -45,7 +54,7 @@ disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["apps/user_service/tests", "apps/task_service/tests"]
+testpaths = ["apps/user_service/tests", "apps/task_service/tests", "apps/api_gateway/tests", "apps/notification_service/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
