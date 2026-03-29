@@ -42,8 +42,8 @@ async def create_task(
                     task_id=created_task.id,
                     author_id=None,
                 )
-            except Exception as e:
-                raise ValueError("Operation failed") from e
+            except Exception:
+                raise
 
         return {"message": f"Task created: {task.title}", "task_id": created_task.id}
     except Exception as e:
@@ -56,18 +56,12 @@ async def set_author(
     task_id: int,
     author_id: int,
 ):
-    try:
-        updated_task = await set_author_helper(
-            session=session, task_id=task_id, author_id=author_id
-        )
+    updated_task = await set_author_helper(session=session, task_id=task_id, author_id=author_id)
 
-        if updated_task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
+    if updated_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
 
-        return {"message": "Author assigned successfully"}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error adding author: {str(e)}") from e
+    return {"message": "Author assigned successfully"}
 
 
 @router.get("/get_task_by_id/")
@@ -75,15 +69,11 @@ async def get_inf_about_author_by_task_id(
     session: SessionDep,
     task_id: int,
 ):
-    try:
-        author_info = await get_inf_about_author_helper(
-            session=session, task_id=task_id, author_id=None
-        )
+    author_info = await get_inf_about_author_helper(
+        session=session, task_id=task_id, author_id=None
+    )
 
-        if author_info is None:
-            raise HTTPException(status_code=404, detail="No author found for this task")
+    if author_info is None:
+        raise HTTPException(status_code=404, detail="No author found for this task")
 
-        return author_info
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting author info: {str(e)}") from e
+    return author_info
