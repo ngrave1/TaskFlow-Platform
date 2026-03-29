@@ -78,8 +78,8 @@ async def health_check():
     try:
         await async_redis.ping()
         redis_ok = True
-    except Exception as e:
-        raise ValueError("Operation failed") from e
+    except Exception:
+        redis_ok = False
 
     providers_status = {}
     for provider_name, provider in AVAILABLE_PROVIDERS.items():
@@ -121,17 +121,17 @@ async def send_notification(
     notification: NotificationDTO,
     bg_tasks: BackgroundTasks,
 ):
-    try:
-        if notification.provider not in AVAILABLE_PROVIDERS:
-            available_providers = list(AVAILABLE_PROVIDERS.keys())
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Provider '{notification.provider}' not supported. "
-                    f"Available providers: {available_providers}"
-                ),
-            )
+    if notification.provider not in AVAILABLE_PROVIDERS:
+        available_providers = list(AVAILABLE_PROVIDERS.keys())
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Provider '{notification.provider}' not supported. "
+                f"Available providers: {available_providers}"
+            ),
+        )
 
+    try:
         provider = AVAILABLE_PROVIDERS[notification.provider]
         is_configured = await provider.validate_config()
 
@@ -150,6 +150,8 @@ async def send_notification(
             "provider": notification.provider,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("notification.queue.failed", error=str(e))
         raise HTTPException(

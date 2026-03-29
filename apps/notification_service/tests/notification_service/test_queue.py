@@ -39,7 +39,7 @@ async def test_push_notification_success():
     result = await push_notification(mock_redis, {"test": "data"})
 
     assert result is True
-    mock_redis.rpush.assert_called_once_with("notifications", {"test": "data"})
+    mock_redis.rpush.assert_called_once_with("notifications", '{"test": "data"}')
 
 
 @pytest.mark.asyncio
