@@ -12,20 +12,53 @@ from redis.asyncio import Redis
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-os.environ["TESTING"] = "true"
-os.environ["SMTP_HOST"] = "smtp.test.com"
-os.environ["SMTP_PORT"] = "465"
-os.environ["SMTP_USERNAME"] = "test@test.com"
-os.environ["SMTP_PASSWORD"] = "test_password"
-os.environ["SMTP_FROM_EMAIL"] = "test@test.com"
-os.environ["SMTP_USE_TLS"] = "True"
-os.environ["REDIS_HOST"] = "localhost"
-os.environ["REDIS_PORT"] = "6379"
-os.environ["REDIS_PASSWORD"] = ""
-os.environ["REDIS_DB"] = "0"
+TEST_REDIS_URL = "redis://localhost:6379/0"
+TEST_API_GATEWAY_URL = "http://test-api-gateway:8000"
+TEST_USER_SERVICE_URL = "http://test-user-service:8000"
 
-from src.notification_service.main import app
-from src.notification_service.router import AVAILABLE_PROVIDERS
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("DEBUG", "true")
+
+os.environ.setdefault("TASK_SERVICE_DATABASE_URL", "sqlite+aiosqlite:///file::memory:?cache=shared")
+os.environ.setdefault("USER_SERVICE_DATABASE_URL", "sqlite+aiosqlite:///file::memory:?cache=shared")
+os.environ.setdefault("DATABASE_POOL_SIZE", "5")
+os.environ.setdefault("DATABASE_MAX_OVERFLOW", "10")
+os.environ.setdefault("DATABASE_ECHO", "false")
+
+os.environ.setdefault("API_GATEWAY_URL", TEST_API_GATEWAY_URL)
+os.environ.setdefault("USER_URL", TEST_USER_SERVICE_URL)
+
+os.environ.setdefault("SMTP_HOST", "smtp.test.com")
+os.environ.setdefault("SMTP_PORT", "465")
+os.environ.setdefault("SMTP_USERNAME", "test@test.com")
+os.environ.setdefault("SMTP_PASSWORD", "test_password")
+os.environ.setdefault("SMTP_FROM_EMAIL", "test@test.com")
+os.environ.setdefault("SMTP_USE_TLS", "True")
+
+os.environ.setdefault("REDIS_HOST", "localhost")
+os.environ.setdefault("REDIS_PORT", "6379")
+os.environ.setdefault("REDIS_PASSWORD", "")
+os.environ.setdefault("REDIS_DB", "0")
+
+
+def reset_settings_cache():
+    from src.notification_service.config import get_settings
+
+    get_settings.cache_clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    reset_settings_cache()
+    yield
+    reset_settings_cache()
+
+
+@pytest.fixture(scope="session")
+def settings():
+    from src.notification_service.config import get_settings
+
+    return get_settings()
 
 
 @pytest.fixture(scope="session")
@@ -39,6 +72,8 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 
 @pytest.fixture(scope="session")
 def test_client() -> Generator[TestClient, None, None]:
+    from src.notification_service.main import app
+
     with TestClient(app) as client:
         yield client
 
@@ -64,6 +99,8 @@ async def mock_email_provider():
 
 @pytest.fixture
 def mock_available_providers(mock_email_provider):
+    from src.notification_service.router import AVAILABLE_PROVIDERS
+
     with patch.dict(AVAILABLE_PROVIDERS, {"email": mock_email_provider}, clear=True):
         yield
 

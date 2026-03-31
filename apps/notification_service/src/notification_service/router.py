@@ -5,7 +5,7 @@ import structlog
 from common.models.models import NotificationDTO
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
-from .config import settings
+from .config import get_settings
 from .email_provider import EmailProvider
 from .queue_utils import async_redis, push_notification
 
@@ -13,13 +13,15 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
+settings = get_settings()
+
 email_provider = EmailProvider(
-    host=settings.smtp_host,
-    port=settings.smtp_port,
-    username=settings.smtp_username,
-    password=settings.smtp_password,
-    from_email=settings.smtp_from_email,
-    use_tls=settings.smtp_use_tls,
+    host=settings.smtp.host,
+    port=settings.smtp.port,
+    username=settings.smtp.username,
+    password=settings.smtp.password,
+    from_email=settings.smtp.from_email,
+    use_tls=settings.smtp.use_tls,
 )
 
 AVAILABLE_PROVIDERS = {

@@ -4,13 +4,15 @@ import structlog
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from .config import settings
+from .config import get_settings
+
+settings = get_settings()
 
 async_redis = Redis(
-    host=settings.redis_host,
-    port=settings.redis_port,
-    password=settings.redis_password,
-    db=settings.redis_db,
+    host=settings.redis.host,
+    port=settings.redis.port,
+    password=settings.redis.password,
+    db=settings.redis.db,
     decode_responses=True,
 )
 
