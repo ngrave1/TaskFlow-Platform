@@ -1,3 +1,4 @@
+# apps/api-gateway/tests/conftest.py
 import asyncio
 import os
 import sys
@@ -9,13 +10,47 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-os.environ["TESTING"] = "true"
-os.environ["USER_URL"] = "http://test-user-service:8000"
-os.environ["TASK_URL"] = "http://test-task-service:8000"
-os.environ["NOTIFICATION_URL"] = "http://test-notification-service:8000"
-os.environ["ANALYTICS_URL"] = "http://test-analytic-service:8000"
 
-from src.api_gateway.main import app
+TEST_API_GATEWAY_URL = "http://test-api-gateway:8000"
+TEST_USER_SERVICE_URL = "http://test-user-service:8000"
+TEST_TASK_SERVICE_URL = "http://test-task-service:8000"
+TEST_NOTIFICATION_URL = "http://test-notification-service:8000"
+TEST_ANALYTICS_URL = "http://test-analytic-service:8000"
+
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("DEBUG", "true")
+
+os.environ.setdefault("TASK_SERVICE_DATABASE_URL", "sqlite+aiosqlite:///file::memory:?cache=shared")
+os.environ.setdefault("USER_SERVICE_DATABASE_URL", "sqlite+aiosqlite:///file::memory:?cache=shared")
+os.environ.setdefault("DATABASE_POOL_SIZE", "5")
+os.environ.setdefault("DATABASE_MAX_OVERFLOW", "10")
+os.environ.setdefault("DATABASE_ECHO", "false")
+
+os.environ.setdefault("API_GATEWAY_URL", TEST_API_GATEWAY_URL)
+os.environ.setdefault("USER_URL", TEST_USER_SERVICE_URL)
+os.environ.setdefault("TASK_URL", TEST_TASK_SERVICE_URL)
+os.environ.setdefault("NOTIFICATION_URL", TEST_NOTIFICATION_URL)
+os.environ.setdefault("ANALYTICS_URL", TEST_ANALYTICS_URL)
+
+
+def reset_settings_cache():
+    from src.api_gateway.config import get_settings
+
+    get_settings.cache_clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    reset_settings_cache()
+    yield
+    reset_settings_cache()
+
+
+@pytest.fixture(scope="session")
+def settings():
+    from src.api_gateway.config import get_settings
+
+    return get_settings()
 
 
 @pytest.fixture(scope="session")
@@ -29,6 +64,8 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 
 @pytest.fixture(scope="session")
 def test_client() -> Generator[TestClient, None, None]:
+    from src.api_gateway.main import app
+
     with TestClient(app) as client:
         yield client
 
@@ -72,9 +109,7 @@ def mock_httpx_client():
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             pass
 
-    mock_client = MockAsyncClient()
-
-    return mock_client
+    return MockAsyncClient()
 
 
 @pytest.fixture
@@ -150,3 +185,13 @@ def mock_notification_data():
         "subject": "Test Notification",
         "message": "This is a test message",
     }
+
+
+@pytest.fixture
+def override_httpx_client(monkeypatch):
+    def mock_async_client(*args, **kwargs):
+        return mock_httpx_client()
+
+    monkeypatch.setattr("httpx.AsyncClient", lambda *args, **kwargs: mock_async_client())
+
+    return mock_httpx_client()

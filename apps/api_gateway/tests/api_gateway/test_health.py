@@ -5,4 +5,4 @@ def test_health_check(test_client):
     data = response.json()
     assert data["status"] == "healthy"
     assert data["service"] == "api-gateway"
-    assert data["environment"] == "development"
+    assert data["environment"] == "test"

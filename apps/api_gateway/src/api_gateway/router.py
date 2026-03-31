@@ -3,10 +3,11 @@ import structlog
 from common.models.models import NotificationDTO, UserDtoSchema
 from fastapi import APIRouter, HTTPException
 
-from .config import settings
+from .config import get_settings
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
+settings = get_settings()
 
 
 @router.get("/health")
@@ -14,14 +15,14 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "api-gateway",
-        "environment": "development",
+        "environment": settings.environment,
     }
 
 
 @router.get("/tasks/with_authors/{author_id}")
 async def get_tasks_with_authors(author_id: int):
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{settings.USER_URL}/receive_user_by_id/{author_id}")
+        response = await client.get(f"{settings.user_url}/receive_user_by_id/{author_id}")
         logger.info(
             "api_gateway.get_user.response",
             status_code=response.status_code,
@@ -56,7 +57,7 @@ async def send_notification(notification: NotificationDTO):
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{settings.NOTIFICATION_URL}/send_notification/",
+                f"{settings.notification_url}/send_notification/",
                 json=notification.model_dump(),
             )
 
