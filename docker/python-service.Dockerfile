@@ -1,6 +1,6 @@
 ARG APP_NAME
 
-FROM python:3.12-slim as base
+FROM python:3.12-slim AS base
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     curl \
@@ -20,7 +20,7 @@ RUN mv /root/.local/bin/uv /usr/local/bin/uv && \
 
 WORKDIR /app
 
-FROM base as builder
+FROM base AS builder
 ARG APP_NAME
 
 COPY pyproject.toml uv.lock ./
@@ -29,7 +29,7 @@ COPY apps/${APP_NAME}/pyproject.toml ./apps/${APP_NAME}/pyproject.toml
 
 RUN uv sync --frozen --no-dev --package ${APP_NAME}
 
-FROM base as runtime
+FROM base AS runtime
 ARG APP_NAME
 ENV APP_NAME=${APP_NAME}
 
