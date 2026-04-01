@@ -64,7 +64,7 @@ class TestCreateUser:
     @pytest.mark.asyncio
     async def test_create_user_success(self):
         email = "newuser@test.com"
-        password = "securepassword123"
+        password = "securepassword123"  # pragma: allowlist secret
 
         user = await create_user(email, password)
 
@@ -77,7 +77,7 @@ class TestCreateUser:
     @pytest.mark.asyncio
     async def test_create_user_with_special_characters(self):
         email = "user.name+tag@example.co.uk"
-        password = "password123!@#"
+        password = "password123!@#"  # pragma: allowlist secret
 
         user = await create_user(email, password)
 
@@ -87,7 +87,7 @@ class TestCreateUser:
     @pytest.mark.asyncio
     async def test_create_user_empty_password(self):
         email = "empty@test.com"
-        password = ""
+        password = ""  # pragma: allowlist secret
 
         user = await create_user(email, password)
 
@@ -100,7 +100,7 @@ class TestSessionAdd:
     @pytest.mark.asyncio
     async def test_session_add_success(self, async_session):
         email = "sessionadd@test.com"
-        password = "password123"
+        password = "password123"  # pragma: allowlist secret
 
         user = await create_user(email, password)
         assert user.id is None
@@ -119,7 +119,7 @@ class TestDeleteUserOrm:
     @pytest.mark.asyncio
     async def test_delete_user_success(self, async_session):
         email = "todelete@test.com"
-        password = "password123"
+        password = "password123"  # pragma: allowlist secret
 
         user = await create_user(email, password)
         await session_add(async_session, user)
@@ -139,7 +139,7 @@ class TestDeleteUserOrm:
 
     @pytest.mark.asyncio
     async def test_delete_user_twice(self, async_session):
-        user = await create_user("double@test.com", "password123")
+        user = await create_user("double@test.com", "password123")  # pragma: allowlist secret
         await session_add(async_session, user)
 
         user_id = user.id
@@ -153,7 +153,7 @@ class TestPasswordHashingIntegration:
     @pytest.mark.asyncio
     async def test_password_hashing_roundtrip(self, async_session):
         email = "hash_test@example.com"
-        plain_password = "MySecurePassword123!"
+        plain_password = "MySecurePassword123!"  # pragma: allowlist secret
 
         user = await create_user(email, plain_password)
         await session_add(async_session, user)
@@ -166,7 +166,7 @@ class TestPasswordHashingIntegration:
 
     @pytest.mark.asyncio
     async def test_password_salts_are_unique(self, async_session):
-        password = "samepassword"
+        password = "samepassword"  # pragma: allowlist secret
         user1 = await create_user("user1@test.com", password)
         user2 = await create_user("user2@test.com", password)
 
@@ -180,17 +180,17 @@ class TestPasswordHashingIntegration:
 
 class TestTransactionHandling:
     @pytest.mark.asyncio
-    async def test_independent_sessions(self, async_engine):
+    async def test_independent_sessions(self, db_engine):
         from sqlalchemy.ext.asyncio import async_sessionmaker
 
         async_session_factory = async_sessionmaker(
-            async_engine,
+            db_engine,
             expire_on_commit=False,
             class_=AsyncSession,
         )
 
         async with async_session_factory() as session1, async_session_factory() as session2:
-            user = await create_user("session1@test.com", "pass123")
+            user = await create_user("session1@test.com", "pass123")  # pragma: allowlist secret
             session1.add(user)
             await session1.commit()
 

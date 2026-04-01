@@ -4,11 +4,13 @@ import jwt
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import settings
+from .config import get_settings
 from .orm_utils import get_user_by_email, get_user_by_id
 from .password_utils import check_password
 from .user_models import Users
 from .user_schemes import TokensSchema, UserLoginSchema
+
+settings = get_settings()
 
 
 async def encode_jwt(

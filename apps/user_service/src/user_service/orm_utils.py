@@ -1,36 +1,31 @@
-import os
-
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
-from .config import settings
+from .config import get_settings
 from .password_utils import hash_password
 from .user_models import Users
 
-database_url = str(settings.url)
+settings = get_settings()
 
-
-is_testing = os.getenv("TESTING") == "true"
+database_url = settings.database_url
+pool_size = settings.pool_size
+max_overflow = settings.max_overflow
+pool_class = settings.pool_class
+echo = settings.echo
 
 engine_kwargs = {
     "url": database_url,
+    "echo": echo,
 }
 
-if not is_testing:
-    engine_kwargs.update(
-        {
-            "pool_size": settings.pool_size,
-            "max_overflow": 10,
-        }
-    )
-else:
-    from sqlalchemy.pool import NullPool
-
+if pool_class == NullPool:
     engine_kwargs["poolclass"] = NullPool
-
+else:
+    engine_kwargs["pool_size"] = pool_size
+    engine_kwargs["max_overflow"] = max_overflow
 
 engine = create_async_engine(**engine_kwargs)
-
 
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
