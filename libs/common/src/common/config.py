@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import ClassVar, Optional
 
@@ -59,8 +58,6 @@ _common_settings: Optional[AppSettings] = None
 
 def get_common_settings() -> Optional[AppSettings]:
     global _common_settings
-    if os.getenv("TESTING") == "true":
-        return None
     if _common_settings is None:
         _common_settings = AppSettings()
     return _common_settings
