@@ -1,36 +1,30 @@
-import os
-
-from sqlalchemy import select
+from sqlalchemy import NullPool, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from .config import settings
+from .config import get_settings
 from .task_models import Tasks
 
-database_url = settings.url
+settings = get_settings()
 
+database_url = settings.database_url
 
-is_testing = os.getenv("TESTING") == "true"
+pool_size = settings.pool_size
+max_overflow = settings.max_overflow
+pool_class = settings.pool_class
+echo = settings.echo
 
 engine_kwargs = {
     "url": database_url,
+    "echo": echo,
 }
 
-if not is_testing:
-    engine_kwargs.update(
-        {
-            "pool_size": settings.pool_size,
-            "max_overflow": 10,
-        }
-    )
-else:
-    from sqlalchemy.pool import NullPool
-
+if pool_class == NullPool:
     engine_kwargs["poolclass"] = NullPool
-
+else:
+    engine_kwargs["pool_size"] = pool_size
+    engine_kwargs["max_overflow"] = max_overflow
 
 engine = create_async_engine(**engine_kwargs)
-
-
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 

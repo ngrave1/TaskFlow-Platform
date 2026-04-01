@@ -15,11 +15,13 @@ service_dir = current_dir.parent
 src_dir = service_dir / "src"
 sys.path.insert(0, str(src_dir))
 
-from task_service.config import settings
+from task_service.config import get_settings
 from task_service.task_models import Base
 
+settings = get_settings()
+
 config = context.config
-config.set_main_option("sqlalchemy.url", str(settings.url))
+config.set_main_option("sqlalchemy.url", str(settings.database_url))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

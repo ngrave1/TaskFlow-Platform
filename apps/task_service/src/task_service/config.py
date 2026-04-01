@@ -1,38 +1,71 @@
-import os
+from functools import lru_cache
+from typing import Any
 
-from pydantic_settings import BaseSettings
+from common.config import AppSettings, DatabaseSettings, ServiceUrls
+from pydantic import Field, model_validator
+from pydantic_settings import SettingsConfigDict
+from sqlalchemy.pool import NullPool, QueuePool
 
 
-class Settings(BaseSettings):
+class TaskServiceDatabaseSettings(DatabaseSettings):
+    @model_validator(mode="after")
+    def validate_url(self) -> "TaskServiceDatabaseSettings":
+        if not self.task_service_url:
+            raise ValueError("TASK_SERVICE_DATABASE_URL must be set")
+        return self
+
+
+class TaskServiceUrls(ServiceUrls):
+    pass
+
+
+class TaskServiceSettings(AppSettings):
+    database: TaskServiceDatabaseSettings = Field(default_factory=TaskServiceDatabaseSettings)
+    urls: TaskServiceUrls = Field(default_factory=TaskServiceUrls)
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_nested_delimiter="__",
+        extra="ignore",
+    )
+
     @property
-    def url(self) -> str:
-        if os.getenv("TESTING") == "true":
-            return os.getenv(
-                "TASK_SERVICE_DATABASE_URL", "sqlite+aiosqlite:///file::memory:?cache=shared"
-            )
-
-        from common.config import common_settings
-
-        base = common_settings.database.url.rstrip("/")
-        if not base.endswith("/"):
-            base = base + "/"
-        return f"{base}task_service"
+    def database_url(self) -> str:
+        return self.database.task_service_url
 
     @property
     def pool_size(self) -> int:
-        if os.getenv("TESTING") == "true":
-            return 5
-        from common.config import common_settings
+        return self.database.pool_size
 
-        return common_settings.database.pool_size
+    @property
+    def max_overflow(self) -> int:
+        return self.database.max_overflow
+
+    @property
+    def pool_class(self) -> Any:
+        if self.database.pool_class == "NullPool":
+            return NullPool
+
+        return QueuePool
 
     @property
     def echo(self) -> bool:
-        if os.getenv("TESTING") == "true":
-            return False
-        from common.config import common_settings
+        return self.database.echo
 
-        return common_settings.database.echo
+    @property
+    def api_gateway_url(self) -> str:
+        return self.urls.api_gateway
+
+    @property
+    def user_service_url(self) -> str:
+        return self.urls.user_service
+
+    @property
+    def notification_service_url(self) -> str:
+        return self.urls.notification_service
 
 
-settings = Settings()
+@lru_cache()
+def get_settings() -> TaskServiceSettings:
+    return TaskServiceSettings()

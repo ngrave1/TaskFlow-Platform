@@ -1,21 +1,13 @@
-import os
-
 import httpx
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .config import get_settings
 from .orm_utils import check_author, set_author
 
 logger = structlog.get_logger(__name__)
 
-
-async def get_api_gateway_url() -> str:
-    if os.getenv("TESTING") == "true":
-        return "http://test-api-gateway:8000"
-    from common.config import get_common_settings
-
-    common = get_common_settings()
-    return common.urls.api_gateway
+settings = get_settings()
 
 
 async def get_inf_about_author_helper(
@@ -33,7 +25,7 @@ async def get_inf_about_author_helper(
         raise ValueError("Either task_id or author_id must be provided")
 
     if target_author_id is not None:
-        api_gateway_url = await get_api_gateway_url()
+        api_gateway_url = settings.urls.api_gateway
 
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{api_gateway_url}/tasks/with_authors/{target_author_id}")
@@ -89,7 +81,7 @@ async def send_assign_notification(
     else:
         recipient_email = None
 
-    api_gateway_url = await get_api_gateway_url()
+    api_gateway_url = settings.urls.api_gateway
     async with httpx.AsyncClient() as client:
         response = await client.post(
             f"{api_gateway_url}/tasks/send_notification/",
