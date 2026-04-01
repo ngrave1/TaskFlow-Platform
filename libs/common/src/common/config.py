@@ -7,8 +7,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DatabaseSettings(BaseSettings):
-    url: str = Field(alias="DATABASE_URL")
+    task_service_url: str = Field(alias="TASK_SERVICE_DATABASE_URL")
+    user_service_url: str = Field(alias="USER_SERVICE_DATABASE_URL")
     pool_size: int = Field(default=10, alias="DATABASE_POOL_SIZE")
+    pool_class: Optional[str] = Field(default=None, alias="DATABASE_POOL_CLASS")
+    max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
     echo: bool = Field(default=False, alias="DATABASE_ECHO")
 
     model_config = SettingsConfigDict(extra="ignore")
@@ -37,6 +40,9 @@ class AppSettings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     urls: ServiceUrls = Field(default_factory=ServiceUrls)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
+
+    environment: str = Field(alias="ENVIRONMENT")
+    debug: bool = Field(alias="DEBUG")
 
     env_path: ClassVar[Path] = Path(__file__).parent.parent.parent.parent.parent / ".env"
 
