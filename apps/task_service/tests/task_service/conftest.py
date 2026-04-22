@@ -1,0 +1,274 @@
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import AsyncGenerator, Generator
+
+import pytest
+import pytest_asyncio
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+
+TEST_DATABASE_URL = "sqlite+aiosqlite:///file::memory:?cache=shared"
+TEST_API_GATEWAY_URL = "http://test-api-gateway:8000"
+TEST_USER_SERVICE_URL = "http://test-user-service:8000"
+TEST_NOTIFICATION_URL = "http://test-notification-service:8000"
+
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("DEBUG", "true")
+
+os.environ.setdefault("TASK_SERVICE_DATABASE_URL", TEST_DATABASE_URL)
+os.environ.setdefault("USER_SERVICE_DATABASE_URL", TEST_DATABASE_URL)
+os.environ.setdefault("DATABASE_POOL_SIZE", "5")
+os.environ.setdefault("DATABASE_MAX_OVERFLOW", "10")
+os.environ.setdefault("DATABASE_ECHO", "false")
+
+os.environ.setdefault("API_GATEWAY_URL", TEST_API_GATEWAY_URL)
+os.environ.setdefault("USER_URL", TEST_USER_SERVICE_URL)
+os.environ.setdefault("TASK_URL", "http://test-task-service:8000")
+os.environ.setdefault("NOTIFICATION_URL", TEST_NOTIFICATION_URL)
+
+
+def reset_settings_cache():
+    from src.task_service.config import get_settings
+
+    get_settings.cache_clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    reset_settings_cache()
+    yield
+    reset_settings_cache()
+
+
+@pytest.fixture(scope="session")
+def settings():
+    from src.task_service.config import get_settings
+
+    return get_settings()
+
+
+@pytest.fixture(scope="session")
+def test_client() -> Generator[TestClient, None, None]:
+    from src.task_service.main import app
+
+    with TestClient(app) as client:
+        yield client
+
+
+@pytest.fixture(scope="session")
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def db_engine(settings):
+    from src.task_service.task_models import Base
+
+    database_url = settings.database_url
+
+    engine = create_async_engine(
+        database_url,
+        echo=False,
+        poolclass=NullPool,
+    )
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def async_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
+    async_session_factory = async_sessionmaker(
+        db_engine,
+        expire_on_commit=False,
+        class_=AsyncSession,
+    )
+
+    async with async_session_factory() as session:
+        try:
+            yield session
+        finally:
+            await session.rollback()
+            await session.close()
+
+
+@pytest.fixture
+def override_dependencies(db_engine):
+    from src.task_service.main import app
+    from src.task_service.orm_utils import get_session
+
+    async def override_get_session():
+        async_session_factory = async_sessionmaker(
+            db_engine,
+            expire_on_commit=False,
+            class_=AsyncSession,
+        )
+        async with async_session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    yield
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def test_task(async_session) -> dict:
+    from src.task_service.orm_utils import create_task_orm
+
+    task_data = {
+        "title": "Test Task",
+        "content": "This is a test task content",
+        "author_id": None,
+    }
+
+    task = await create_task_orm(
+        session=async_session,
+        title=task_data["title"],
+        content=task_data["content"],
+        author_id=task_data["author_id"],
+    )
+
+    await async_session.refresh(task)
+
+    return {
+        "id": task.id,
+        "title": task.title,
+        "content": task.content,
+        "author_id": task.author_id,
+        "status": task.status,
+        "task_object": task,
+    }
+
+
+@pytest_asyncio.fixture
+async def test_task_with_author(async_session) -> dict:
+    from src.task_service.orm_utils import create_task_orm
+
+    author_id = 1
+    task_data = {
+        "title": "Test Task with Author",
+        "content": "This task has an assigned author",
+        "author_id": author_id,
+    }
+
+    task = await create_task_orm(
+        session=async_session,
+        title=task_data["title"],
+        content=task_data["content"],
+        author_id=task_data["author_id"],
+    )
+
+    await async_session.refresh(task)
+
+    return {
+        "id": task.id,
+        "title": task.title,
+        "content": task.content,
+        "author_id": task.author_id,
+        "status": task.status,
+        "task_object": task,
+    }
+
+
+@pytest_asyncio.fixture
+async def multiple_tasks(async_session) -> list[dict]:
+    """Создает несколько тестовых задач"""
+    from src.task_service.orm_utils import create_task_orm
+
+    tasks_data = [
+        {"title": "Task 1", "content": "Content 1", "author_id": 1},
+        {"title": "Task 2", "content": "Content 2", "author_id": 1},
+        {"title": "Task 3", "content": "Content 3", "author_id": 2},
+        {"title": "Task 4", "content": "Content 4", "author_id": None},
+    ]
+
+    created_tasks = []
+    for task_data in tasks_data:
+        task = await create_task_orm(
+            session=async_session,
+            title=task_data["title"],
+            content=task_data["content"],
+            author_id=task_data["author_id"],
+        )
+        await async_session.refresh(task)
+        created_tasks.append(
+            {
+                "id": task.id,
+                "title": task.title,
+                "content": task.content,
+                "author_id": task.author_id,
+                "status": task.status,
+                "task_object": task,
+            }
+        )
+
+    return created_tasks
+
+
+# ============================================
+# 5. Моки для внешних сервисов
+# ============================================
+
+
+@pytest.fixture
+def mock_httpx_client(monkeypatch):
+    """Мок для HTTPX клиента"""
+
+    class MockResponse:
+        def __init__(self, json_data, status_code=200):
+            self.json_data = json_data
+            self.status_code = status_code
+
+        def json(self):
+            return self.json_data
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise Exception(f"HTTP Error: {self.status_code}")
+
+    class MockAsyncClient:
+        def __init__(self):
+            self.get_calls = []
+            self.post_calls = []
+
+        async def get(self, url, **kwargs):
+            self.get_calls.append({"url": url, "kwargs": kwargs})
+            return MockResponse({"email": "test@example.com", "id": 1})
+
+        async def post(self, url, json=None, **kwargs):
+            self.post_calls.append({"url": url, "json": json, "kwargs": kwargs})
+            return MockResponse({"status": "sent"})
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    mock_client = MockAsyncClient()
+
+    def mock_async_client(*args, **kwargs):
+        return mock_client
+
+    monkeypatch.setattr("httpx.AsyncClient", lambda *args, **kwargs: mock_client)
+
+    return mock_client

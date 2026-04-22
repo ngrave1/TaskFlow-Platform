@@ -1,17 +1,61 @@
+[project]
+name = "taskflow-platform"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "black>=26.1.0",
+    "detect-secrets>=1.5.0",
+    "pre-commit>=4.5.1",
+]
+
 [tool.uv.workspace]
 members = [
-    "apps/api-gateway",
-    "apps/task-service", 
+    "apps/api_gateway",
+    "apps/task_service", 
     "apps/user_service",
-    "apps/notification-service",
-    "apps/analytics-service",
+    "apps/notification_service",
+    "apps/analytics_service",
     "libs/common"
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
 ]
 
 [tool.uv.sources]
 common = { workspace = true }
-api-gateway = { workspace = true }
-task-service = { workspace = true }
-user-service = { workspace = true }
-notification-service = { workspace = true }
-analytics-service = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "I", "B", "F", "SIM",]
+ignore = [
+    # E402: module level import not at top of file
+    # Required in conftest.py to configure sys.path and env vars before imports
+    "E402",
+    # ARG: unused function argument
+    # Required for FastAPI dependency injection and test mocks
+    "ARG",
+]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["apps/user_service/tests", "apps/task_service/tests", "apps/api_gateway/tests", "apps/notification_service/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v -s --tb=short"

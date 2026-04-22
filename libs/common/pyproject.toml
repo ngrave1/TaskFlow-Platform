@@ -2,14 +2,16 @@
 name = "common"
 version = "0.1.0"
 requires-python = ">=3.12"
+
 dependencies = [
+    "alembic>=1.18.4",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
     "structlog>=25.5.0",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["common"]
+packages = ["src/common"]
 
 [build-system]
 requires = ["hatchling"]

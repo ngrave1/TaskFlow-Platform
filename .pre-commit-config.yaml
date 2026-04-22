@@ -1,0 +1,38 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.4
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        exclude: |
+          (?x)^(
+            scripts/manual_testing/|
+            apps/.*/migrations/|
+            .venv/
+          )
+      - id: ruff-format
+        exclude: |
+          (?x)^(
+            scripts/manual_testing/|
+            apps/.*/migrations/|
+            .venv/
+          )
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args:
+          - "--baseline"
+          - ".secrets.baseline"
+          - "--exclude-files"
+          - "(node_modules|\\.ruff_cache|\\.venv|uv\\.lock|scripts/manual_testing)"
+        exclude: |
+          (?x)^(
+            .*\/migrations\/|
+            \.env\.test|
+            \.env\.shared\.example|
+            apps/.*/certs/|
+            apps/.*/README\.md|
+            ^docs/configuration\.md
+          )

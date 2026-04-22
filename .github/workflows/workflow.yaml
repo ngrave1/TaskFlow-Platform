@@ -1,0 +1,187 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  NAMESPACE: taskflow-platform
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-packages
+
+      - name: Check conventional commits
+        if: github.event_name == 'pull_request'
+        uses: webiny/action-conventional-commits@v1.3.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint (ruff check)
+        run: |
+          uv run ruff check --output-format=github apps/ libs/
+
+      - name: Format check (ruff format)
+        run: |
+          uv run ruff format --check apps/ libs/
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - task_service
+          - user_service
+          - api_gateway
+          - notification_service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-packages
+          uv pip install aiosqlite
+
+      - name: Create JWT certificates for testing
+        if: matrix.app == 'user_service'
+        run: |
+          mkdir -p apps/user_service/src/certs
+          openssl genrsa -out apps/user_service/src/certs/jwt-private.pem 2048
+          openssl rsa -in apps/user_service/src/certs/jwt-private.pem -pubout -out apps/user_service/src/certs/jwt-public.pem
+
+      - name: Run tests (${{ matrix.app }})
+        env:
+          TESTING: "true"
+          DATABASE_URL: "sqlite+aiosqlite:///file::memory:?cache=shared"
+        run: |
+          cd apps/${{ matrix.app }}
+          uv run pytest tests/ \
+            -v \
+            --tb=short \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --cov-fail-under=60 \
+            --junitxml=junit.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/junit.xml
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/${{ matrix.app }}/coverage.xml
+          flags: ${{ matrix.app }}
+          name: ${{ matrix.app }}-coverage
+        continue-on-error: true
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: success()
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api_gateway
+            app_path: apps/api_gateway
+            uvicorn_module: "src.api_gateway.main:app"
+          
+          - service: task_service
+            app_path: apps/task_service
+            uvicorn_module: "src.task_service.main:app"
+          
+          - service: user_service
+            app_path: apps/user_service
+            uvicorn_module: "src.user_service.main:app"
+          
+          - service: notification_service
+            app_path: apps/notification_service
+            uvicorn_module: "src.notification_service.main:app"
+          
+          - service: analytics_service
+            app_path: apps/analytics_service
+            uvicorn_module: "src.analytics_service.main:app"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build ${{ matrix.service }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/python-service.Dockerfile
+          build-args: |
+            APP_NAME=${{ matrix.service }}
+            APP_PATH=${{ matrix.app_path }}
+            UVICORN_MODULE=${{ matrix.uvicorn_module }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.service }}:ci-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.service }}:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
