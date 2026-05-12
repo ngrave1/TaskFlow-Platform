@@ -1,3 +1,5 @@
+Вот исправленная версия README с восстановленной подсветкой языков и корректным отображением структуры проекта.
+
 # TaskFlow — платформа для управления задачами
 
 ## Цель проекта
@@ -9,6 +11,7 @@ FastAPI, PostgreSQL, Redis, Docker и современных инструмен�
 
 ## Структура монорепозитория
 
+```text
 taskflow-platform/
 ├── apps/                              # Сервисы
 │   ├── api_gateway/                   # API Gateway (порт 8000)
@@ -31,30 +34,35 @@ taskflow-platform/
 ├── docker-compose.yml                 # Оркестрация всех сервисов + БД
 ├── pyproject.toml                     # UV workspace + ruff + pytest
 └── uv.lock                            # Единый lock‑файл для всего проекта
+```
 
 ---
 
 ## Запуск проекта
 
 ### Запустите всё через Docker Compose
-bash
-docker compose up -d
 
-Что произойдёт:
+```bash
+docker compose up -d
+```
+
+**Что произойдёт:**
 - Поднимутся контейнеры PostgreSQL (порт 5438 на хосте) и Redis (6379)
 - Запустяться сервисы миграций
 - Каждый сервис выполнит `alembic upgrade head` (миграции)
 - Запустятся 5 FastAPI приложений на портах 8000‑8004
 
 ### Проверьте работоспособность
-bash
+
+```bash
 curl http://localhost:8000/health                # API Gateway
 curl http://localhost:8001/health                # User Service
-и т.д
+# и т.д.
+```
 
 ---
 
-##  Ключевые реализованные фичи
+## Ключевые реализованные фичи
 
 ### 1. Централизованная конфигурация
 - Файл `libs/common/src/common/config.py` содержит вложенные Pydantic модели (`DatabaseSettings`, `RedisSettings`, `ServiceUrls`).
@@ -68,8 +76,10 @@ curl http://localhost:8001/health                # User Service
   - в production – JSON‑формат (легко парсить в Loki / Datadog)
 - Фильтр `HealthCheckFilter` убирает шум от `/health` при `debug=False`
 - Пример лога:
-  {"event": "user.registered", "email": "user@example.com", "level": "info", "timestamp": "2026-05-12T10:15:30.123Z"}
-  
+
+```json
+{"event": "user.registered", "email": "user@example.com", "level": "info", "timestamp": "2026-05-12T10:15:30.123Z"}
+```
 
 ### 3. Абстракция провайдеров уведомлений
 - Базовый класс `NotificationProvider` (файл `base_notification_provider.py`) с методами `send()` и `validate_config()`.
@@ -83,8 +93,11 @@ curl http://localhost:8001/health                # User Service
 - Единый `python-service.Dockerfile` принимает `APP_NAME` и копирует только нужную директорию `apps/${APP_NAME}`.
 - Сборка в два этапа (`builder` → `runtime`) уменьшает финальный образ.
 - Пример для user_service:
-  COPY apps/user_service/pyproject.toml ./apps/user_service/
-  RUN uv sync --frozen --no-dev --package user_service
+
+```dockerfile
+COPY apps/user_service/pyproject.toml ./apps/user_service/
+RUN uv sync --frozen --no-dev --package user_service
+```
 
 ### 6. CI/CD (GitHub Actions)
 - `ci.yml` выполняет матричный прогон тестов по всем 5 сервисам.
@@ -100,7 +113,7 @@ curl http://localhost:8001/health                # User Service
 - Прокси‑вызовы через `httpx.AsyncClient` с таймаутом 30 секунд.
 - Перехват и логирование входящих запросов и ответов.
 - Единый health‑check endpoint (`/health`), агрегирующий статус зависимостей.
-- Обработка ошибок с сохранением цепочки исключений .
+- Обработка ошибок с сохранением цепочки исключений.
 
 ### 9. User Service (аутентификация и профили)
 - Регистрация, логин, выдача JWT (RS256, пары `private.pem`/`public.pem`).
@@ -119,35 +132,58 @@ curl http://localhost:8001/health                # User Service
 ## 🔧 Примеры использования (API)
 
 ### Регистрация пользователя
+
+```bash
 curl -X POST http://localhost:8000/register/ \
   -H "Content-Type: application/json" \
   -d '{"email": "alice@example.com", "password": "secret"}'
+```
 
 ### Логин (получение JWT)
+
+```bash
 curl -X POST http://localhost:8000/login/ \
   -H "Content-Type: application/json" \
   -d '{"email": "alice@example.com", "password": "secret"}'
-# → {"access_token": "...", "refresh_token": "...", "user_id": 1}
+```
 
+Пример ответа:
+
+```json
+{"access_token": "...", "refresh_token": "...", "user_id": 1}
+```
 
 ### Создание задачи (через API Gateway)
+
+```bash
 curl -X POST http://localhost:8000/create_task/ \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{"title": "Документация", "content": "Написать README", "author_id": 1}'
+```
 
 ### Назначить исполнителя (триггер уведомления по email)
+
+```bash
 curl -X POST http://localhost:8000/assign_a_worker/?task_id=1&author_id=2 \
   -H "Authorization: Bearer <access_token>"
-→ Сервис уведомлений отправляет письмо на email назначенного пользователя.
+```
+
+> Сервис уведомлений отправляет письмо на email назначенного пользователя.
 
 ### Отправить уведомление напрямую (для отладки)
+
+```bash
 curl -X POST http://localhost:8000/tasks/send_notification/ \
   -H "Content-Type: application/json" \
   -d '{"recipient": "alice@example.com", "provider": "email", "subject": "Hello", "message": "Task assigned"}'
+```
 
 ### Получить аналитику по задачам (агрегация)
+
+```bash
 curl http://localhost:8004/stats?period=week
+```
 
 ---
 
